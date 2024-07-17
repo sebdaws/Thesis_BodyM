@@ -55,6 +55,7 @@ def evaluate_model(data_loader, model, device, preview=False):
     model.eval()
     model.to(device)
     iou_scores = []
+    min_iou = 1
     
     for images, true_masks in data_loader:
         images = images.to(device)
@@ -71,6 +72,8 @@ def evaluate_model(data_loader, model, device, preview=False):
             union = np.logical_or(true_mask, predicted_mask)
             iou = np.sum(intersection) / np.sum(union) if np.sum(union) != 0 else 0
             iou_scores.append(iou)
+            if iou < min_iou:
+                min_iou = iou
             
             if preview:
                 plt_images(images[idx], true_mask, predicted_mask)
@@ -80,13 +83,14 @@ def evaluate_model(data_loader, model, device, preview=False):
     
     # Calculate the mean IoU across all samples
     mean_iou = np.mean(iou_scores)
-    return mean_iou
+    return [mean_iou, min_iou]
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', required=True, choices=['train', 'test'], help='Specify wether to train the model or test it.')
     parser.add_argument('--percent', required=False, type=float, default=1.0, help='Select the percentage of the training set to train on.')
     parser.add_argument('--model', type=str, default='deeplabv3', help='Choose model to test.')
+    parser.add_argument('--weights', required=False, choices=['resnet50', 'resnet101', 'mobilenet'], default='resnet50', help='Specify wether to train the model or test it.')
     parser.add_argument('--num_epochs', required=False, type=int, default=20, help='Number of epochs on which to train. (default is 20)')
     args = parser.parse_args()
 
@@ -139,11 +143,17 @@ def main():
     
     print('Loading model...')
     
-    if args.model == 'deeplabv3':
+    if args.weights == 'resnet50':
         model_weights = DeepLabV3_ResNet50_Weights.DEFAULT
         model = deeplabv3_resnet50(weights=model_weights).to(device)
+    elif args.weights == 'resnet101':
+        model_weights = DeepLabV3_ResNet101_Weights.DEFAULT
+        model = deeplabv3_resnet101(weights=model_weights).to(device)
+    elif args.weights == 'mobilenet':
+        model_weights = DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT
+        model = deeplabv3_mobilenet_v3_large(weights=model_weights).to(device)
     else:
-        raise NameError('Chosen model not available')
+        raise NameError('Chosen weights not available')
     
     print('Model loaded')
     
@@ -151,17 +161,19 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
         train_model(model, device, train_loader, optimizer, num_epochs=args.num_epochs)
-        
+        if not os.path.exists('trained_models'):
+            os.mkdir('trained_models')
         save_path = os.path.join('trained_models', f'{args.model}_{int(100*args.percent)}')
         torch.save(model.state_dict(), save_path)
         print(f"Model saved to {save_path}")
     
     elif args.mode == 'test':
-        print(f'Testing {args.model} with ResNet101, {test_count} test samples, on {device}')
+        print(f'Testing {args.model} with {args.weights}, {test_count} test samples, on {device}')
 
         # Assuming 'data_loader' is an iterable over preprocessed image and mask pairs
-        mean_iou = evaluate_model(test_loader, model, device, preview=False)
-        print(f"Mean IoU: {mean_iou:.4f}")
+        iou_scores = evaluate_model(test_loader, model, device, preview=False)
+        print(f"Mean IoU: {iou_scores[0]:.4f}")
+        print(f"Lowest IoU: {iou_scores[1]:.4f}")
         
     else:
         raise AttributeError("Incorrect mode, should be 'train'or 'test'")
