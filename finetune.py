@@ -135,7 +135,7 @@ def main():
         ])
 
     dataset = SegmentationDataset(
-            root_dir=os.path.join('CAESAR','output_dataset'),
+            root_dir=os.path.join('data','segmentation_dataset'),
             transform=transform
         )
 
@@ -159,3 +159,6 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=4, shuffle=False)
 
     trained_model = train_model(model, train_loader, Path('./test'), 1, device)
+
+if __name__ == '__main__':
+    main()
