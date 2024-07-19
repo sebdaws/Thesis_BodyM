@@ -178,14 +178,14 @@ def main():
     print('Initialising dataset...')
     # Initialize the dataset
     dataset = SegmentationDataset(
-        root_dir=os.path.join('CAESAR','output_dataset'),
+        root_dir=os.path.join('data','segmentation_dataset'),
         transform=transform
     )
     
     # Split the dataset into train, validation, and test
     total_count = len(dataset)
     train_count = int(0.8 * total_count)
-    valid_count = int(0.10 * total_count)
+    valid_count = int(0.1 * total_count)
     test_count = total_count - train_count - valid_count
 
     train_dataset, valid_dataset, test_dataset = random_split(dataset, [train_count, valid_count, test_count])
