@@ -67,11 +67,13 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
             for name, metric in metrics.items():
                 if name == 'f1_score':
                     # Use a classification threshold of 0.1
-                    batchsummary[f'{phase}_{name}'].append(metric(y_true > 0, y_pred > 0.1))
+                    f1 = metric(y_true > 0, y_pred > 0.1)
+                    batchsummary[f'{phase}_{name}'].append(f1)
                 else:
-                    batchsummary[f'{phase}_{name}'].append(metric(y_true.astype('uint8'), y_pred))
+                    auroc = metric(y_true.astype('uint8'), y_pred)
+                    batchsummary[f'{phase}_{name}'].append(auroc)
 
-            pbar.set_postfix({'Loss': f'{batch_loss/(i+1):.4f}'})
+            pbar.set_postfix({'Loss': f'{batch_loss/(i+1):.4f}', 'F1': f'{f1:.4f}', 'AUROC': f'{auroc:.4f}'})
             pbar.update()
 
             # if (i+1)%10 == 0:
@@ -79,23 +81,23 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
             #     batch_loss = 0
 
             # Validation Phase
-            model.eval()
-            running_loss = 0.0
-            with torch.no_grad():
-                for images, masks in validloader:
-                    images = images.to(device)
-                    masks = masks.to(device)
+        model.eval()
+        running_loss = 0.0
+        with torch.no_grad():
+            for images, masks in validloader:
+                images = images.to(device)
+                masks = masks.to(device)
 
-                    outputs = model(images)['out']
-                    loss = criterion(outputs, masks)
+                outputs = model(images)['out']
+                loss = criterion(outputs, masks)
 
-                    running_loss += loss.item()
-                    pbar.set_postfix({'epoch': epoch, 'phase': 'valid', 'loss': f'{running_loss / len(validloader):.4f}'})
-                    pbar.update()
+                running_loss += loss.item()
+                pbar.set_postfix({'epoch': epoch, 'phase': 'valid', 'loss': f'{running_loss / len(validloader):.4f}'})
+                pbar.update()
 
-            valid_loss = running_loss / len(validloader)
-            if valid_loss < best_loss:
-                best_loss = valid_loss
+        valid_loss = running_loss / len(validloader)
+        if valid_loss < best_loss:
+            best_loss = valid_loss
         
         pbar.close()
 
