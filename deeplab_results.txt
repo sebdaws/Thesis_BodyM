@@ -1,3 +1,5 @@
 DeepLabV3 - ResNet101: Mean IoU = 0.9189, Min = 0.3593
 DeepLabV3 - ResNet50:  Mean IoU = 0.8998, Min = 0.2492
 DeepLabV3 - MobileNet: Mean IoU = 0.8081, Min = 0.1632
+
+DeepLabV3 - ResNet50

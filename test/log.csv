@@ -1,1 +1,2 @@
 epoch,Train_loss,Test_loss,Train_f1_score,Train_auroc,Test_f1_score,Test_auroc
+1,0.042360007762908936,[0],0.5674540147103022,0.9584216962582951,0.0,0.0
