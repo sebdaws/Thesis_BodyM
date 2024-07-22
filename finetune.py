@@ -158,7 +158,7 @@ def main():
     valid_count = int(0.10 * total_count)
     test_count = total_count - train_count - valid_count
 
-    train_dataset, _, _ = random_split(dataset, [train_count, valid_count, test_count])
+    train_dataset, valid_dataset, _ = random_split(dataset, [train_count, valid_count, test_count])
 
     percent = args.percent
 
@@ -170,10 +170,23 @@ def main():
 
     # Create data loaders for each split
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
-    trained_model = train_model(model, train_loader, optimizer, Path('./test'), args.num_epochs, device)
+    trained_model = train_model(
+        model, 
+        train_loader, 
+        valid_loader, 
+        optimizer, 
+        Path('./test'), 
+        args.num_epochs, 
+        device
+        )
 
-    torch.save(trained_model.state_dict(), os.path.join('trained_models', f'{args.weights}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
+    save_folder = Path('./trained_models')
+    if not save_folder.exists():
+        save_folder.mkdir()
+
+    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.weights}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
 
 if __name__ == '__main__':
     main()
