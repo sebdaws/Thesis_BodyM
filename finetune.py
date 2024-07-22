@@ -19,7 +19,7 @@ random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
 
-def train_model(model, dataloader, optimizer, bpath, num_epochs, device):
+def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, device):
     since = time.time()
     best_loss = 1e10
     model.to(device)
@@ -46,10 +46,10 @@ def train_model(model, dataloader, optimizer, bpath, num_epochs, device):
         model.train()
         phase = 'Train'
 
-        pbar = tqdm.tqdm(total=len(dataloader), desc=f'Epoch {epoch}/{num_epochs}', unit='batch')
+        pbar = tqdm.tqdm(total=len(trainloader), desc=f'Epoch {epoch}/{num_epochs}', unit='batch')
 
         batch_loss = 0
-        for i, (images, masks) in enumerate(dataloader):
+        for i, (images, masks) in enumerate(trainloader):
             images = images.to(device)
             masks = masks.to(device)
             # zero the parameter gradients
@@ -77,6 +77,25 @@ def train_model(model, dataloader, optimizer, bpath, num_epochs, device):
             # if (i+1)%10 == 0:
             #     print(f'Batch {i+1}/{len(dataloader)}, Loss: {batch_loss/10}')
             #     batch_loss = 0
+
+            # Validation Phase
+            model.eval()
+            running_loss = 0.0
+            with torch.no_grad():
+                for images, masks in validloader:
+                    images = images.to(device)
+                    masks = masks.to(device)
+
+                    outputs = model(images)['out']
+                    loss = criterion(outputs, masks)
+
+                    running_loss += loss.item()
+                    pbar.set_postfix({'epoch': epoch, 'phase': 'valid', 'loss': f'{running_loss / len(validloader):.4f}'})
+                    pbar.update()
+
+            valid_loss = running_loss / len(validloader)
+            if valid_loss < best_loss:
+                best_loss = valid_loss
         
         pbar.close()
 
