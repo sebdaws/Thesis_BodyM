@@ -183,6 +183,7 @@ def main():
 
     # Setup the test dataset and dataloader
     transform = T.Compose([
+        T.Resize((512, 512)),
         T.ToTensor(),
     ])
     dataset = SegmentationDataset(
