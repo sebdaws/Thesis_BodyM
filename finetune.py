@@ -28,7 +28,7 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
     metrics = {'f1_score': f1_score, 'auroc': roc_auc_score}
     
     # Initialize the log file for training and testing loss and metrics
-    fieldnames = ['epoch', 'Train_loss', 'Test_loss'] + \
+    fieldnames = ['epoch', 'Train_loss', 'Valid_loss'] + \
         [f'Train_{m}' for m in metrics.keys()] + \
         [f'Valid_{m}' for m in metrics.keys()]
     
