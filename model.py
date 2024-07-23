@@ -9,24 +9,27 @@ class SigmoidDeepLabHead(nn.Sequential):
             nn.Sigmoid()
         )
 
-def load_model(net):
+def load_model(net, modify=True):
 
     if net == 'resnet50':
         model_weights = DeepLabV3_ResNet50_Weights.DEFAULT
         model = deeplabv3_resnet50(weights=model_weights)
+        channels = 2048
     elif net == 'resnet101':
         model_weights = DeepLabV3_ResNet101_Weights.DEFAULT
         model = deeplabv3_resnet101(weights=model_weights)
+        channels = 2048
     elif net == 'mobilenet':
         model_weights = DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT
         model = deeplabv3_mobilenet_v3_large(weights=model_weights)
+        channels = 960
     else:
         raise NameError('Chosen weights not available')
     
     print(f'DeepLabV3, {net} backbone')
 
     model.aux_classifier = None
-    model.classifier = SigmoidDeepLabHead(2048, 1)
+    model.classifier = SigmoidDeepLabHead(channels, 1)
 
     for param in model.parameters():
         param.requires_grad = False
