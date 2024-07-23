@@ -30,7 +30,7 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
     # Initialize the log file for training and testing loss and metrics
     fieldnames = ['epoch', 'Train_loss', 'Test_loss'] + \
         [f'Train_{m}' for m in metrics.keys()] + \
-        [f'Test_{m}' for m in metrics.keys()]
+        [f'Valid_{m}' for m in metrics.keys()]
     
     if not bpath.exists():
         bpath.mkdir()
@@ -76,11 +76,8 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
             pbar.set_postfix({'Loss': f'{batch_loss/(i+1):.4f}', 'F1': f'{f1:.4f}', 'AUROC': f'{auroc:.4f}'})
             pbar.update()
 
-            # if (i+1)%10 == 0:
-            #     print(f'Batch {i+1}/{len(dataloader)}, Loss: {batch_loss/10}')
-            #     batch_loss = 0
-
-            # Validation Phase
+        phase = 'Valid'
+        # Validation Phase
         model.eval()
         running_loss = 0.0
         with torch.no_grad():

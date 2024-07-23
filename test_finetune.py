@@ -12,10 +12,16 @@ from load_data import SegmentationDataset
 import random
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix  
+import argparse
+import torchmetrics as TM
+from enum import IntEnum
 
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
+
+class TrimapClasses(IntEnum):
+    PERSON = 1
 
 def plt_images(image, mask, pred):
     plt.figure(figsize=(12, 4))
@@ -84,7 +90,7 @@ def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor):
     return thresholded 
 
 def iou_numpy(outputs: np.array, labels: np.array):
-    outputs = outputs.squeeze()
+    # outputs = outputs.squeeze()
     
     intersection = (outputs & labels).sum((1, 2))
     union = (outputs | labels).sum((1, 2))
@@ -109,13 +115,11 @@ def compute_iou(y_pred, y_true):
     return np.mean(IoU)
 
 def load_model(model_path, device):
-    # model_weights = DeepLabV3_ResNet50_Weights.DEFAULT
     model = deeplabv3_resnet50(weights='DEFAULT')
     model.aux_classifier = None
     model.classifier = SigmoidDeepLabHead(2048, 1)  # Assuming binary classification
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
-    model.eval()
     return model
 
 def test_model(model, dataloader, device, preview=False):
@@ -124,6 +128,11 @@ def test_model(model, dataloader, device, preview=False):
     all_targets = []
     iou_scores = []
     min_iou = 1
+
+    # pixel_metric = TM.classification.MulticlassAccuracy(2, average='micro')
+    # pixel_metric = pixel_metric.to(device)
+    # iou = TM.classification.MulticlassJaccardIndex(2, average='micro', ignore_index=TrimapClasses.BACKGROUND)
+    # iou = iou.to(device)   
 
     print('Testing model...')
     
@@ -139,21 +148,10 @@ def test_model(model, dataloader, device, preview=False):
             all_targets.extend(targets.ravel())
 
             for j in range(images.size(0)):
-                iou_score_val = iou_calc(preds[j].squeeze(), targets[j].squeeze())
+                iou_score_val = iou_numpy(preds[j].squeeze(), targets[j].squeeze())
                 iou_scores.append(iou_score_val)
                 if iou_score_val < min_iou:
                     min_iou = iou_score_val
-
-            # for i in range(images.size(0)):
-            #     mask = masks[i].cpu().numpy()
-            #     pred = outputs[i].cpu().numpy()
-            
-            #     intersection = np.logical_and(mask, pred)
-            #     union = np.logical_or(mask, pred)
-            #     iou = np.sum(intersection) / np.sum(union) if np.sum(union) != 0 else 0
-            #     iou_scores.append(iou)
-            #     if iou < min_iou:
-            #         min_iou = iou
 
             if preview:
                 plt_images(images[1], masks[1], outputs[1])
@@ -169,10 +167,16 @@ def test_model(model, dataloader, device, preview=False):
     return f1, auroc, (np.mean(iou_scores), min_iou)
 
 def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--preview', required=False, type=bool, default=False, help='Select whether to plot preview.')
+    parser.add_argument('--weights', required=True, type=str, default='./trained_models/test_resnet50.pt', help='Specify path to weights.')
+    args = parser.parse_args()
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'Using device: {device}')
     
-    model_path = 'test_resnet50.pt'  # Adjust path as needed
+    model_path = args.weights
     model = load_model(model_path, device)
 
     model.eval()
@@ -204,7 +208,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, drop_last=True)
     
     # Evaluate the model
-    f1_score, auroc_score, ious = test_model(model, test_loader, device, preview=False)
+    f1_score, auroc_score, ious = test_model(model, test_loader, device, preview=args.preview)
     print(f'Test F1 Score: {f1_score:.4f}')
     print(f'Test AUROC Score: {auroc_score:.4f}')
     print(f'Test IoU Score: {ious[0]:.4f}')
