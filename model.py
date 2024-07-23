@@ -1,4 +1,3 @@
-
 import torch.nn as nn
 from torchvision.models.segmentation import deeplabv3_resnet101, deeplabv3_mobilenet_v3_large, deeplabv3_resnet50
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3_ResNet101_Weights, DeepLabV3_MobileNet_V3_Large_Weights, DeepLabV3_ResNet50_Weights, DeepLabHead
@@ -10,21 +9,21 @@ class SigmoidDeepLabHead(nn.Sequential):
             nn.Sigmoid()
         )
 
-def load_model(weights):
+def load_model(net):
 
-    if weights == 'resnet50':
+    if net == 'resnet50':
         model_weights = DeepLabV3_ResNet50_Weights.DEFAULT
         model = deeplabv3_resnet50(weights=model_weights)
-    elif weights == 'resnet101':
+    elif net == 'resnet101':
         model_weights = DeepLabV3_ResNet101_Weights.DEFAULT
         model = deeplabv3_resnet101(weights=model_weights)
-    elif weights == 'mobilenet':
+    elif net == 'mobilenet':
         model_weights = DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT
         model = deeplabv3_mobilenet_v3_large(weights=model_weights)
     else:
         raise NameError('Chosen weights not available')
     
-    print(f'DeepLabV3, {weights} backbone')
+    print(f'DeepLabV3, {net} backbone')
 
     model.aux_classifier = None
     model.classifier = SigmoidDeepLabHead(2048, 1)
