@@ -76,6 +76,8 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
             pbar.set_postfix({'Loss': f'{batch_loss/(i+1):.4f}', 'F1': f'{f1:.4f}', 'AUROC': f'{auroc:.4f}'})
             pbar.update()
 
+        pbar.close()
+
         phase = 'Valid'
         # Validation Phase
         model.eval()

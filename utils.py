@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 def plt_images(image, mask, pred, threshold=0.5):
-    # pred = (pred > threshold).float()
+    pred = (pred > threshold).float()
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 3, 1)
     plt.imshow(image.cpu().permute(1, 2, 0))
