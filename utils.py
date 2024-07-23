@@ -18,3 +18,5 @@ def plt_images(image, mask, pred):
     plt.axis('off')
 
     plt.show()
+
+    plt.savefig('preview.jpg', format='jpg', bbox_inches='tight')

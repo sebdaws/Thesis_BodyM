@@ -81,8 +81,8 @@ def test_model(model, dataloader, device, preview=False):
                 plt_images(images[1], masks[1], outputs[1])
                 return
             
-            if (i+1)%1 == 0:
-                print(f'Batch {i+1}/{len(dataloader)}, IoU: {iou_score_val}, Acc: {pixacc_score_val}')
+            if (i+1)%10 == 0:
+                print(f'Batch {i+1}/{len(dataloader)}, IoU: {iou_score_val:.4f}, Acc: {pixacc_score_val:.4f}')
     
     all_preds = np.array(all_preds)
     all_targets = np.array(all_targets)
@@ -94,7 +94,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--preview', required=False, type=bool, default=False, help='Select whether to plot preview.')
-    parser.add_argument('--weights', required=True, type=str, default='./trained_models/test_resnet50.pt', help='Specify path to weights.')
+    parser.add_argument('--weights', required=False, type=str, default=False, help='Specify path to weights.')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -102,8 +102,9 @@ def main():
     
     model_path = args.weights
     model = load_model('resnet50')
-    model.load_state_dict(torch.load(model_path, map_location=device))
-
+    if model_path:
+        model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
     model.eval()
 
     # Setup the test dataset and dataloader
@@ -124,7 +125,7 @@ def main():
 
     _, _, test_dataset = random_split(dataset, [train_count, valid_count, test_count])
 
-    percent = 0.1
+    percent = 1
     if percent < 1:
         subset_size = int(percent*len(test_dataset))
         indices = list(range(len(test_dataset)))
