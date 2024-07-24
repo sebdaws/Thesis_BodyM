@@ -94,6 +94,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--preview', required=False, type=bool, default=False, help='Select whether to plot preview.')
+    parser.add_argument('--backbone', required=True, type=str, default='resnet50', help='Specify path to weights.')
     parser.add_argument('--weights', required=False, type=str, default=False, help='Specify path to weights.')
     args = parser.parse_args()
 
@@ -101,7 +102,7 @@ def main():
     print(f'Using device: {device}')
     
     model_path = args.weights
-    model = load_model('resnet50')
+    model = load_model(args.backbone)
     if model_path:
         model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
