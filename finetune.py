@@ -20,6 +20,21 @@ random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
 
+def train_metrics(preds, targets, metrics, batchsummary, phase, batch_size):
+    for name, metric in metrics.items():
+        if name == 'f1_score':
+            # Use a classification threshold of 0.1
+            f1 = metric(targets.ravel() > 0, preds.ravel() > 0.1)
+            batchsummary[f'{phase}_{name}'].append(f1)
+        else:
+            score_ls = []
+            for j in range(batch_size):
+                score = metric(targets[j], preds[j])
+                score_ls.append(score)
+            batchsummary[f'{phase}_{name}'].append(np.mean(score_ls))
+    
+    return batchsummary
+
 def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs, device):
     since = time.time()
     best_loss = 1e10
@@ -38,13 +53,11 @@ def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs,
         writer.writeheader()
 
     for epoch in range(1, num_epochs + 1):
-        # print('Epoch {}/{}'.format(epoch, num_epochs))
-        # print('-' * 10)
         batchsummary = {a: [0] for a in fieldnames}
 
+        #--------Train--------#
         model.train()
         phase = 'Train'
-
         pbar = tqdm.tqdm(total=len(trainloader), desc=f'Epoch {epoch}/{num_epochs}', unit='batch')
 
         batch_loss = 0
@@ -53,32 +66,27 @@ def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs,
             masks = masks.to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
-
             outputs = model(images)['out']
-            # print(outputs.shape, masks.shape)
+
             loss = criterion(outputs, masks)
-            y_pred = outputs.data.cpu().numpy().ravel()
-            y_true = masks.data.cpu().numpy().ravel()
+            preds = outputs.data.cpu().numpy()
+            targets = masks.data.cpu().numpy()
+
             loss.backward()
             batch_loss += loss
             optimizer.step()
 
-            for name, metric in metrics.items():
-                if name == 'f1_score':
-                    # Use a classification threshold of 0.1
-                    f1 = metric(y_true > 0, y_pred > 0.1)
-                    batchsummary[f'{phase}_{name}'].append(f1)
-                else:
-                    auroc = metric(y_true.astype('uint8'), y_pred)
-                    batchsummary[f'{phase}_{name}'].append(auroc)
+            batchsummary = train_metrics(preds, targets, metrics, batchsummary, phase, images.size(0))
 
-            pbar.set_postfix({'Loss': f'{batch_loss/(i+1):.4f}', 'F1': f'{f1:.4f}', 'AUROC': f'{auroc:.4f}'})
+            pbar.set_postfix({'Loss': f'{batch_loss/(i+1):.4f}'})
             pbar.update()
+        
+        batchsummary[f'{phase}_loss'] = loss.item()
 
         pbar.close()
 
+        #--------Validation--------#
         phase = 'Valid'
-        # Validation Phase
         model.eval()
         running_loss = 0.0
         with torch.no_grad():
@@ -87,21 +95,26 @@ def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs,
                 masks = masks.to(device)
 
                 outputs = model(images)['out']
+                preds = outputs.data.cpu().numpy()
+                targets = masks.data.cpu().numpy()
+
                 loss = criterion(outputs, masks)
 
                 running_loss += loss.item()
+
+                batchsummary = train_metrics(preds, targets, metrics, batchsummary, phase, images.size(0))
+
                 pbar.set_postfix({'epoch': epoch, 'phase': 'valid', 'loss': f'{running_loss / len(validloader):.4f}'})
                 pbar.update()
+
+        pbar.close()
 
         valid_loss = running_loss / len(validloader)
         if valid_loss < best_loss:
             best_loss = valid_loss
         
-        pbar.close()
-
         batchsummary['epoch'] = epoch
-        epoch_loss = loss
-        batchsummary[f'{phase}_loss'] = epoch_loss.item()
+        batchsummary[f'{phase}_loss'] = valid_loss
         print('{} Loss: {:.4f}'.format(phase, loss))
         for field in fieldnames[3:]:
             batchsummary[field] = np.mean(batchsummary[field])
