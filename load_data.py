@@ -3,13 +3,15 @@ import os
 from torch.utils.data import Dataset
 
 class SegmentationDataset(Dataset):
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, im_transform=None, mask_transform=None):
         """
         Args:
             root_dir: Directory with multiple subdirectories, each containing 'images' and 'masks' subdirectories.
-            transform: Optional transform to be applied on a sample.
+            im_transform: Transform to be applied on images.
+            mask_transform: Transform to be applied on masks.
         """
-        self.transform = transform
+        self.im_transform = im_transform
+        self.mask_transform = mask_transform
         self.images = []  # List to store image paths
         self.masks = []   # List to store corresponding mask paths
 
@@ -38,10 +40,12 @@ class SegmentationDataset(Dataset):
 
         # Load the image and mask files
         image = Image.open(img_name).convert("RGB")
-        mask = Image.open(mask_name).convert("L")  # convert mask to grayscale
+        mask = Image.open(mask_name).convert("L")
 
         # Apply transform to both image and mask if a transform is specified
-        if self.transform:
-            image, mask = self.transform(image), self.transform(mask)
+        if self.im_transform:
+            image = self.im_transform(image)
+        if self.mask_transform:
+            mask = self.mask_transform(mask)
 
         return image, mask

@@ -140,15 +140,21 @@ def main():
     optimizer = torch.optim.SGD(params_to_update, lr=0.001, momentum=0.9)
 
 
-    transform = T.Compose([
+    im_transform = T.Compose([
             T.Resize((args.resize, args.resize)),
             T.ToTensor(),
-            # T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
+
+    mask_transform = T.Compose([
+        T.Resize((args.resize, args.resize)),
+        T.ToTensor(),
+    ])
 
     dataset = SegmentationDataset(
             root_dir=os.path.join('data','segmentation_dataset'),
-            transform=transform
+            im_transform=im_transform,
+            mask_transform=mask_transform
         )
 
     # Split the dataset into train, validation, and test

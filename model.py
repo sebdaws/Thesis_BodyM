@@ -9,7 +9,7 @@ class SigmoidDeepLabHead(nn.Sequential):
             nn.Sigmoid()
         )
 
-def load_model(net, modify=True):
+def load_model(net, finetune=False):
 
     if net == 'resnet50':
         model_weights = DeepLabV3_ResNet50_Weights.DEFAULT
@@ -28,14 +28,15 @@ def load_model(net, modify=True):
     
     print(f'DeepLabV3, {net} backbone')
 
-    model.aux_classifier = None
-    model.classifier = SigmoidDeepLabHead(channels, 1)
+    if finetune:
+        model.aux_classifier = None
+        model.classifier = SigmoidDeepLabHead(channels, 1)
 
-    for param in model.parameters():
-        param.requires_grad = False
+        for param in model.parameters():
+            param.requires_grad = False
 
-    for param in model.classifier.parameters():
-        param.requires_grad = True
+        for param in model.classifier.parameters():
+            param.requires_grad = True
 
     param_size = 0
     for param in model.parameters():

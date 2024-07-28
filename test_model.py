@@ -42,7 +42,7 @@ def pixel_accuracy(true_mask, predicted_mask, threshold=0.5):
     pixel_acc = correct_predictions / total_pixels
     return pixel_acc
 
-def test_model(model, dataloader, device, preview=False):
+def test_model(model, dataloader, device, finetune=True, preview=False):
     criterion = nn.BCELoss()
     all_preds = []
     all_targets = []
@@ -59,10 +59,18 @@ def test_model(model, dataloader, device, preview=False):
         for i, (images, masks) in enumerate(dataloader):
             images = images.to(device)
             masks = masks.to(device)
-            outputs = model(images)['out']
-            loss = criterion(outputs, masks)
-            preds = outputs.data.cpu().numpy()
+            if finetune==False:
+                outputs = model(images)['out'][:, 15, :, :].unsqueeze(1)
+                print(outputs)
+                # outputs = torch.sigmoid(outputs)
+                print(outputs)
+                preds = (outputs > 0.5).byte().cpu().numpy()
+            else:
+                outputs = model(images)['out']
+                preds = outputs.data.cpu().numpy()
+
             targets = masks.data.cpu().numpy()
+            loss = criterion(outputs, masks)
             all_preds.extend(preds.ravel())
             all_targets.extend(targets.ravel())
 
@@ -78,7 +86,7 @@ def test_model(model, dataloader, device, preview=False):
                     min_acc = pixacc_score_val
 
             if preview:
-                plt_images(images[1], masks[1], outputs[1])
+                plt_images(images[0], masks[0], outputs[0])
                 return
             
             if (i+1)%10 == 0:
@@ -88,7 +96,7 @@ def test_model(model, dataloader, device, preview=False):
     all_targets = np.array(all_targets)
     f1 = f1_score(all_targets > 0, all_preds > 0.5)
     auroc = roc_auc_score(all_targets, all_preds)
-    return f1, auroc, (np.mean(iou_scores), min_iou), (np.mean(pixacc_scores), min_acc)
+    return f1, (np.mean(iou_scores), min_iou), (np.mean(pixacc_scores), min_acc)
 
 def main():
 
@@ -102,20 +110,27 @@ def main():
     print(f'Using device: {device}')
     
     model_path = args.weights
-    model = load_model(args.backbone)
+    model = load_model(args.backbone, finetune=args.weights)
     if model_path:
         model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     model.eval()
 
-    # Setup the test dataset and dataloader
-    transform = T.Compose([
+    im_transform = T.Compose([
+            T.Resize((512, 512)),
+            T.ToTensor(),
+            # T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+    mask_transform = T.Compose([
         T.Resize((512, 512)),
         T.ToTensor(),
     ])
+
     dataset = SegmentationDataset(
             root_dir=os.path.join('data','segmentation_dataset'),
-            transform=transform
+            im_transform=im_transform,
+            mask_transform=mask_transform
         )
 
     # Split the dataset into train, validation, and test
@@ -136,9 +151,9 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, drop_last=True)
     
     # Evaluate the model
-    f1_score, auroc_score, ious, accs = test_model(model, test_loader, device, preview=args.preview)
+    f1_score, ious, accs = test_model(model, test_loader, device, finetune=args.weights, preview=args.preview)
     print(f'Test F1 Score: {f1_score:.4f}')
-    print(f'Test AUROC Score: {auroc_score:.4f}')
+    # print(f'Test AUROC Score: {auroc_score:.4f}')
     print(f'Test IoU Score: {ious[0]:.4f}')
     print(f'Lowest IoU Score: {ious[1]:.4f}')
     print(f'Test Pixel Accuracy: {accs[0]:.4f}')
