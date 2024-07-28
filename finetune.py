@@ -133,10 +133,10 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--percent', required=False, type=float, default=1.0, help='Select the percentage of the training set to train on.')
-    parser.add_argument('--weights', required=False, choices=['resnet50', 'resnet101', 'mobilenet'], default='resnet50', help='Specify wether to train the model or test it.')
-    parser.add_argument('--num_epochs', required=False, type=int, default=2, help='Number of epochs on which to train. (default is 20)')
+    parser.add_argument('--backbone', required=False, choices=['resnet50', 'resnet101', 'mobilenet'], default='resnet50', help='Specify wether to train the model or test it.')
+    parser.add_argument('--num_epochs', required=False, type=int, default=3, help='Number of epochs on which to train. (default is 20)')
     parser.add_argument('--batch_size', required=False, type=int, default=4, help='Size of batch for training. (default is 4)')
-    parser.add_argument('--resize', required=False, type=int, default=256, help='Size of images to resize to.')
+    parser.add_argument('--resize', required=False, type=int, default=512, help='Size of images to resize to.')
     args = parser.parse_args()
 
     if torch.cuda.is_available():
