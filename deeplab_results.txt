@@ -32,3 +32,18 @@ Test Pixel Accuracy: 0.9846
 Lowest IoU Score: 0.0031
 Lowest Pixel Accuracy: 0.8279
 ----------------------------------
+
+
+----------------------------------
+Trained Models
+----------------------------------
+ResNet101, 512px, 10 epochs
+
+Test F1 Score: 0.9362
+Test IoU Score: 0.8789
+Test Pixel Accuracy: 0.9852
+
+Lowest IoU Score: 0.4621
+Lowest Pixel Accuracy: 0.9639
+----------------------------------
+
