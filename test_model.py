@@ -94,7 +94,7 @@ def test_model(model, dataloader, device, finetune=True, preview=False):
     all_preds = np.array(all_preds)
     all_targets = np.array(all_targets)
     f1 = f1_score(all_targets > 0, all_preds > 0.5)
-    auroc = roc_auc_score(all_targets, all_preds)
+    # auroc = roc_auc_score(all_targets, all_preds)
     return f1, (np.mean(iou_scores), min_iou), (np.mean(pixacc_scores), min_acc)
 
 def main():

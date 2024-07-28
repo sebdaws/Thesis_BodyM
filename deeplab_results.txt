@@ -2,4 +2,33 @@ DeepLabV3 - ResNet101: Mean IoU = 0.9189, Min = 0.3593
 DeepLabV3 - ResNet50:  Mean IoU = 0.8998, Min = 0.2492
 DeepLabV3 - MobileNet: Mean IoU = 0.8081, Min = 0.1632
 
-DeepLabV3 - ResNet50
+----------------------------------
+Baselines
+----------------------------------
+ResNet50
+
+Test F1 Score: 0.9301
+Test IoU Score: 0.8708
+Test Pixel Accuracy: 0.9840
+
+Lowest IoU Score: 0.4109
+Lowest Pixel Accuracy: 0.9195
+----------------------------------
+MobileNet
+
+Test F1 Score: 0.8365
+Test IoU Score: 0.7287
+Test Pixel Accuracy: 0.9710
+
+Lowest IoU Score: 0.0000
+Lowest Pixel Accuracy: 0.6690
+----------------------------------
+ResNet101
+
+Test F1 Score: 0.9384
+Test IoU Score: 0.8877
+Test Pixel Accuracy: 0.9846
+
+Lowest IoU Score: 0.0031
+Lowest Pixel Accuracy: 0.8279
+----------------------------------
