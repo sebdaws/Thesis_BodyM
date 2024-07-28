@@ -60,10 +60,8 @@ def test_model(model, dataloader, device, finetune=True, preview=False):
             images = images.to(device)
             masks = masks.to(device)
             if finetune==False:
-                outputs = model(images)['out'][:, 15, :, :].unsqueeze(1)
-                print(outputs)
-                # outputs = torch.sigmoid(outputs)
-                print(outputs)
+                outputs = model(images)['out'].argmax(1).unsqueeze(1)
+                outputs = (outputs == 15).float()
                 preds = (outputs > 0.5).byte().cpu().numpy()
             else:
                 outputs = model(images)['out']
@@ -86,6 +84,7 @@ def test_model(model, dataloader, device, finetune=True, preview=False):
                     min_acc = pixacc_score_val
 
             if preview:
+                print(loss, iou_score_val, pixacc_score_val)
                 plt_images(images[0], masks[0], outputs[0])
                 return
             
