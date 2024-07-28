@@ -5,7 +5,7 @@ import time
 import os
 import tqdm
 import csv
-from sklearn.metrics import f1_score, roc_auc_score
+from sklearn.metrics import f1_score
 import torchvision.transforms as T
 import random
 from torch.utils.data import DataLoader, Subset, random_split
@@ -13,28 +13,27 @@ from pathlib import Path
 import argparse
 
 from load_data import SegmentationDataset
+from utils import iou_calc, pixel_accuracy
 from model import load_model
 
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
 
-def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, device):
+def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs, device):
     since = time.time()
     best_loss = 1e10
     model.to(device)
     criterion = nn.BCELoss()
 
-    metrics = {'f1_score': f1_score, 'auroc': roc_auc_score}
+    metrics = {'f1_score': f1_score, 'pix_acc': pixel_accuracy, 'IoU': iou_calc}
     
     # Initialize the log file for training and testing loss and metrics
     fieldnames = ['epoch', 'Train_loss', 'Valid_loss'] + \
         [f'Train_{m}' for m in metrics.keys()] + \
         [f'Valid_{m}' for m in metrics.keys()]
     
-    if not bpath.exists():
-        bpath.mkdir()
-    with open(os.path.join(bpath, 'log.csv'), 'w', newline='') as csvfile:
+    with open(metpath, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -107,7 +106,7 @@ def train_model(model, trainloader, validloader, optimizer, bpath, num_epochs, d
         for field in fieldnames[3:]:
             batchsummary[field] = np.mean(batchsummary[field])
         print(batchsummary)
-        with open(os.path.join(bpath, 'log.csv'), 'a', newline='') as csvfile:
+        with open(metpath, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writerow(batchsummary)
 
@@ -177,12 +176,17 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
+    metrics_folder = Path('./finetune_metrics')
+    if not metrics_folder.exists():
+        metrics_folder.mkdir()
+    metrics_file = os.path.join(metrics_folder, f'{args.weights}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.csv')
+
     trained_model = train_model(
         model, 
         train_loader, 
         valid_loader, 
         optimizer, 
-        Path('./test'), 
+        metrics_file, 
         args.num_epochs, 
         device
         )

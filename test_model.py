@@ -9,38 +9,12 @@ from load_data import SegmentationDataset
 import random
 import argparse
 
-from utils import plt_images
+from utils import plt_images, iou_calc, pixel_accuracy
 from model import load_model
 
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
-
-def iou_calc(true_mask, predicted_mask, threshold=0.5):
-    predicted_mask = (predicted_mask > threshold).astype(float)
-    intersection = np.logical_and(true_mask, predicted_mask)
-    union = np.logical_or(true_mask, predicted_mask)
-    iou = np.sum(intersection) / np.sum(union) if np.sum(union) != 0 else 0
-    return iou
-
-def pixel_accuracy(true_mask, predicted_mask, threshold=0.5):
-    """
-    Calculate pixel accuracy by comparing the predicted mask (after thresholding)
-    with the ground truth mask.
-    
-    Parameters:
-    true_mask (numpy.ndarray): The ground truth binary mask.
-    predicted_mask (numpy.ndarray): The predicted probabilities.
-    threshold (float): Threshold to convert probabilities to binary predictions.
-
-    Returns:
-    float: The pixel accuracy score.
-    """
-    predicted_mask = (predicted_mask > threshold).astype(int)
-    correct_predictions = (predicted_mask == true_mask).sum()
-    total_pixels = true_mask.size
-    pixel_acc = correct_predictions / total_pixels
-    return pixel_acc
 
 def test_model(model, dataloader, device, finetune=True, preview=False):
     criterion = nn.BCELoss()
