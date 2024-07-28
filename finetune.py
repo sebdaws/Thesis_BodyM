@@ -146,7 +146,7 @@ def main():
     print(f'Device: {device}')
 
 
-    model = load_model(args.weights).to(device)
+    model = load_model(args.backbone).to(device)
 
     params_to_update = [param for param in model.parameters() if param.requires_grad]
     optimizer = torch.optim.SGD(params_to_update, lr=0.001, momentum=0.9)
@@ -192,7 +192,7 @@ def main():
     metrics_folder = Path('./finetune_metrics')
     if not metrics_folder.exists():
         metrics_folder.mkdir()
-    metrics_file = os.path.join(metrics_folder, f'{args.weights}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.csv')
+    metrics_file = os.path.join(metrics_folder, f'{args.backbone}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.csv')
 
     trained_model = train_model(
         model, 
@@ -208,7 +208,7 @@ def main():
     if not save_folder.exists():
         save_folder.mkdir()
 
-    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.weights}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
+    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.backbone}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
 
 if __name__ == '__main__':
     main()
