@@ -128,8 +128,8 @@ def main():
     print(f'Test F1 Score: {f1_score:.4f}')
     # print(f'Test AUROC Score: {auroc_score:.4f}')
     print(f'Test IoU Score: {ious[0]:.4f}')
+    print(f'Test Pixel Accuracy: {accs[0]:.4f}\n')
     print(f'Lowest IoU Score: {ious[1]:.4f}')
-    print(f'Test Pixel Accuracy: {accs[0]:.4f}')
     print(f'Lowest Pixel Accuracy: {accs[1]:.4f}')
 
 if __name__ == '__main__':
