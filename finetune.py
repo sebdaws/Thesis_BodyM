@@ -149,7 +149,7 @@ def main():
     model = load_model(args.backbone, finetune=True).to(device)
 
     params_to_update = [param for param in model.parameters() if param.requires_grad]
-    optimizer = torch.optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+    optimizer = torch.optim.Adam(params_to_update, lr=0.001)#, momentum=0.9)
 
 
     im_transform = T.Compose([
