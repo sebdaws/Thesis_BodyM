@@ -8,15 +8,16 @@ import torchvision.transforms as T
 from load_data import SegmentationDataset
 import random
 import argparse
+import torch.nn.functional as F
 
 from utils import plt_images, iou_calc, pixel_accuracy
-from model import load_model
+from get_model import load_model
 
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
 
-def test_model(model, dataloader, device, finetune=True, preview=False):
+def test_model(model, dataloader, args, device, finetune=True, preview=False):
     criterion = nn.BCELoss()
     all_preds = []
     all_targets = []
@@ -38,9 +39,13 @@ def test_model(model, dataloader, device, finetune=True, preview=False):
                 outputs = (outputs == 15).float()
                 preds = (outputs > 0.5).byte().cpu().numpy()
             else:
-                outputs = model(images)['out']
+                if args.pointrend:
+                    outputs = model(images)
+                    outputs = F.sigmoid(outputs)
+                else:
+                    outputs = model(images)['out']
                 preds = outputs.data.cpu().numpy()
-
+            # print(outputs)
             targets = masks.data.cpu().numpy()
             loss = criterion(outputs, masks)
             all_preds.extend(preds.ravel())
@@ -74,18 +79,19 @@ def test_model(model, dataloader, device, finetune=True, preview=False):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--preview', required=False, type=bool, default=False, help='Select whether to plot preview.')
     parser.add_argument('--backbone', required=True, type=str, default='resnet50', help='Specify path to weights.')
+    parser.add_argument('--pointrend', action='store_true', default=False)
     parser.add_argument('--weights', required=False, type=str, default=False, help='Specify path to weights.')
+    parser.add_argument('--preview', required=False, type=bool, default=False, help='Select whether to plot preview.')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'Using device: {device}')
     
     model_path = args.weights
-    model = load_model(args.backbone, finetune=args.weights)
+    model = load_model(args.backbone, finetune=args.weights, pointrend=args.pointrend)
     if model_path:
-        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
     model.to(device)
     model.eval()
 
@@ -96,7 +102,7 @@ def main():
         ])
 
     mask_transform = T.Compose([
-        T.Resize((512, 512)),
+        T.Resize((128, 128)),
         T.ToTensor(),
     ])
 
@@ -124,7 +130,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, drop_last=True)
     
     # Evaluate the model
-    f1_score, ious, accs = test_model(model, test_loader, device, finetune=args.weights, preview=args.preview)
+    f1_score, ious, accs = test_model(model, test_loader, args, device, finetune=args.weights, preview=args.preview)
     print(f'Test F1 Score: {f1_score:.4f}')
     # print(f'Test AUROC Score: {auroc_score:.4f}')
     print(f'Test IoU Score: {ious[0]:.4f}')

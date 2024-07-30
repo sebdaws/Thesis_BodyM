@@ -2,3 +2,4 @@ __pycache__/
 CAESAR/
 trained_models/
 pretrained_models/
+detectron2/
