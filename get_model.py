@@ -34,32 +34,39 @@ class PointRendDeepLabV3(nn.Module):
         if backbone=='resnet101':
             self.deeplabv3 = deeplabv3_resnet101(weight='DEFAULT')
             self.backbone = self.deeplabv3.backbone
-            # self.deeplabv3.aux_classifier = nn.Conv2d(256, num_classes, kernel_size=1)
-        self.point_head = PointHead(256 + num_classes, num_classes)  # 256 (FPN output) + 19 (coarse seg head output)
+            self.classifier = self.deeplabv3.classifier
+
+        self.point_head = PointHead(2048 + num_classes, num_classes)  # 256 (FPN output) + 19 (coarse seg head output)
 
     def forward(self, x):
-        features = self.backbone(x)['out']
-        coarse = self.deeplabv3(x)['out']
-        # print(coarse)
+        features = self.backbone(x)
+        coarse = self.classifier(features['out'])
 
         # Sample points
-        num_points = 1000  # Define number of points to sample
+        num_points = 1000
         _, points = sampling_points(coarse, num_points)
 
         # Extract point features
-        fine_grained_features = point_sample(features, points)
-        coarse_features = point_sample(coarse, points)
+        fine_grained_features = point_sample(features['out'], points.unsqueeze(0).repeat(features['out'].size(0), 1, 1))
+        coarse_features = point_sample(coarse, points.unsqueeze(0).repeat(coarse.size(0), 1, 1))
+
+        print(fine_grained_features.shape)
+        print(coarse_features.shape)
 
         point_features = torch.cat([fine_grained_features, coarse_features], dim=1)
 
         # Apply point head
-        point_features = point_features.permute(0, 2, 1)  # (batch_size, feature_dim, num_points)
+        print(point_features.shape)
+        # point_features = point_features.permute(0, 2, 1)
+        # print(point_features.shape)
         refined = self.point_head(point_features)
 
         # Reshape refined to match the coarse output shape
         refined = refined.permute(0, 2, 1).contiguous()
-        refined_output = F.grid_sample(coarse, 2.0 * points - 1.0, mode='bilinear', align_corners=False)
-        refined_output = refined_output.view(coarse.shape[0], coarse.shape[1], -1)
+        refined_output = coarse.clone()
+        refined_output = F.interpolate(refined_output, size=refined_output.shape[-2:], mode='bilinear', align_corners=False)
+        print(points.shape)
+        print(refined.shape)
         refined_output.scatter_(2, points.long(), refined)
 
         return refined_output
@@ -92,7 +99,7 @@ def sampling_points(mask, N, k=3, beta=0.75, training=True):
         _, idx = uncertainty_map.view(B, -1).topk(N, dim=1)
 
         points = torch.zeros(B, N, 2, dtype=torch.float, device=device)
-        points[:, :, 0] = W_step / 2.0 + (idx  % W).to(torch.float) * W_step
+        points[:, :, 0] = W_step / 2.0 + (idx % W).to(torch.float) * W_step
         points[:, :, 1] = H_step / 2.0 + (idx // W).to(torch.float) * H_step
         return idx, points
 

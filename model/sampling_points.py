@@ -2,9 +2,10 @@ import torch
 import torch.nn.functional as F
 
 
-# Utility function for point sampling
 def point_sample(input, point_coords, **kwargs):
     """
+    From Detectron2, point_features.py#19
+
     A wrapper around :function:`torch.nn.functional.grid_sample` to support 3D point_coords tensors.
     Unlike :function:`torch.nn.functional.grid_sample` it assumes `point_coords` to lie inside
     [0, 1] x [0, 1] square.
@@ -28,6 +29,7 @@ def point_sample(input, point_coords, **kwargs):
         output = output.squeeze(3)
     return output
 
+
 @torch.no_grad()
 def sampling_points(mask, N, k=3, beta=0.75, training=True):
     """
@@ -49,12 +51,7 @@ def sampling_points(mask, N, k=3, beta=0.75, training=True):
     """
     assert mask.dim() == 4, "Dim must be N(Batch)CHW"
     device = mask.device
-    B, C, H, W = mask.shape
-
-    # Ensure mask has more than 1 channel
-    if C < 2:
-        mask = mask.repeat(1, 2, 1, 1)
-
+    B, _, H, W = mask.shape
     mask, _ = mask.sort(1, descending=True)
 
     if not training:
@@ -67,6 +64,14 @@ def sampling_points(mask, N, k=3, beta=0.75, training=True):
         points[:, :, 0] = W_step / 2.0 + (idx  % W).to(torch.float) * W_step
         points[:, :, 1] = H_step / 2.0 + (idx // W).to(torch.float) * H_step
         return idx, points
+
+    # Official Comment : point_features.py#92
+    # It is crucial to calculate uncertanty based on the sampled prediction value for the points.
+    # Calculating uncertainties of the coarse predictions first and sampling them for points leads
+    # to worse results. To illustrate the difference: a sampled point between two coarse predictions
+    # with -1 and 1 logits has 0 logit prediction and therefore 0 uncertainty value, however, if one
+    # calculates uncertainties for the coarse predictions first (-1 and -1) and sampe it for the
+    # center point, they will get -1 unceratinty.
 
     over_generation = torch.rand(B, k * N, 2, device=device)
     over_generation_map = point_sample(mask, over_generation, align_corners=False)
