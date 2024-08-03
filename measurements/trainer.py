@@ -106,8 +106,6 @@ for inputs, targets in train_loader:
 
 # Instantiate the network and print its architecture
 model = MeasureNet(num_outputs=len(columns_list), in_channels=inputs.shape[1]).to(device)
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 for param in model.parameters():
     param.requires_grad = False
@@ -115,7 +113,10 @@ for param in model.parameters():
 for param in model.mlp.parameters():
     param.requires_grad = True
 
-print_freq = 10
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+print_freq = 20
 
 # Training loop
 num_epochs = 10
@@ -138,6 +139,9 @@ metrics = {
     "val_TP75": [],
     "val_TP90": []
 }
+
+best_val_loss = float('inf')
+best_model_state = None
 
 for epoch in range(num_epochs):
     model.train()
@@ -213,8 +217,8 @@ for epoch in range(num_epochs):
             for key in val_tp_metrics:
                 val_tp_metrics[key] += batch_tp_metrics[key]
 
-            if (i+1)%print_freq==0:
-                print(f'Batch {i+1}/{len(train_loader)}')
+            # if (i+1)%print_freq==0:
+            #     print(f'Batch {i+1}/{len(train_loader)}')
         
     val_rmse /= len(val_loader)
     val_mae /= len(val_loader)
