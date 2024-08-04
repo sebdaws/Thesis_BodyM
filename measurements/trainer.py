@@ -29,7 +29,7 @@ print(f"Using device: {device}")
 
 def check_for_nans(i, tensor, name):
     if torch.isnan(tensor).any():
-        print(f"NaNs found in {name} {i+1}")
+        # print(f"NaNs found in {name} {i+1}")
         return True
     return False
 
@@ -126,12 +126,12 @@ if args.freeze:
         param.requires_grad = True
 
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 print_freq = 50
 
 # Training loop
-num_epochs = 10
+# num_epochs = 10
 metrics = {
     "epoch": [],
     "train_loss": [],
@@ -154,8 +154,8 @@ metrics = {
 
 best_val_loss = float('inf')
 best_model_state = None
-print(f'Starting training loop: {num_epochs} epochs, backbone weights frozen: {args.freeze}')
-for epoch in range(num_epochs):
+print(f'Starting training loop: {args.num_epochs} epochs, backbone weights frozen: {args.freeze}')
+for epoch in range(args.num_epochs):
     model.train()
     epoch_loss = 0.0
     batch_loss = 0.0
@@ -269,7 +269,7 @@ for epoch in range(num_epochs):
 
 # Save metrics to CSV file
 
-save_name = f'{args.num_epoch}e'
+save_name = f'{args.num_epochs}e'
 if args.freeze:
     save_name += '_freeze'
 if args.weight:
