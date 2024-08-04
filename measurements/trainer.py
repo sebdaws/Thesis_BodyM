@@ -6,13 +6,22 @@ from torch.utils.data import DataLoader
 from torchvision import transforms as T
 from sklearn.metrics import explained_variance_score
 import pandas as pd
+import argparse
+from pathlib import Path
 
 from dataload import BodyMeasurementDataset
 from build_model import MeasureNet
 
 torch.manual_seed(42)
 
-freeze = False
+parser = argparse.ArgumentParser()
+parser.add_argument('--num_epochs', required=False, type=int, default=20, help='Number of epochs on which to train. (default is 20)')
+parser.add_argument('--batch_size', required=False, type=int, default=8, help='Size of batch for training. (default is 8)')
+parser.add_argument('--freeze', required=False, type=bool, default=False, help='Specify wether to freeze the backbone weights.')
+parser.add_argument('--weight', required=False, type=bool, default=False, help='Specify wether to use the weight as input.')
+parser.add_argument('--gender', required=False, type=bool, default=False, help='Specify wether to use the gender as input.')
+parser.add_argument('--lr', required=False, type=float, default=0.001, help='Specify learning rate.')
+args = parser.parse_args()
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -89,18 +98,18 @@ transform = T.Compose([
     T.ToTensor()
 ])
 
-get_weight = False
-get_gender = False
+# get_weight = False
+# get_gender = False
 
 # Create datasets
-train_dataset = BodyMeasurementDataset(train_dir, columns_list, transform, get_weight=get_weight, get_gender=get_gender)
-val_dataset = BodyMeasurementDataset(val_dir, columns_list, transform, get_weight=get_weight, get_gender=get_gender)
-test_dataset = BodyMeasurementDataset(test_dir, columns_list, transform, get_weight=get_weight, get_gender=get_gender)
+train_dataset = BodyMeasurementDataset(train_dir, columns_list, transform, get_weight=args.weight, get_gender=args.gender)
+val_dataset = BodyMeasurementDataset(val_dir, columns_list, transform, get_weight=args.weight, get_gender=args.gender)
+test_dataset = BodyMeasurementDataset(test_dir, columns_list, transform, get_weight=args.weight, get_gender=args.gender)
 
 # Create data loaders
-train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)#, num_workers=4)
-val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False)#, num_workers=4)
-test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)#, num_workers=4)
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)#, num_workers=4)
+val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)#, num_workers=4)
+test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)#, num_workers=4)
 
 for inputs, targets in train_loader:
     print(f'Inputs of shape {inputs.shape}')
@@ -109,7 +118,7 @@ for inputs, targets in train_loader:
 # Instantiate the network and print its architecture
 model = MeasureNet(num_outputs=len(columns_list), in_channels=inputs.shape[1]).to(device)
 
-if freeze:
+if args.freeze:
     for param in model.parameters():
         param.requires_grad = False
 
@@ -145,7 +154,7 @@ metrics = {
 
 best_val_loss = float('inf')
 best_model_state = None
-print(f'Starting training loop: {num_epochs} epochs, backbone weights frozen: {freeze}')
+print(f'Starting training loop: {num_epochs} epochs, backbone weights frozen: {args.freeze}')
 for epoch in range(num_epochs):
     model.train()
     epoch_loss = 0.0
@@ -259,9 +268,29 @@ for epoch in range(num_epochs):
     metrics["val_TP90"].append(val_tp_metrics["TP90"])
 
 # Save metrics to CSV file
+
+save_name = f'{args.num_epoch}e'
+if args.freeze:
+    save_name += '_freeze'
+if args.weight:
+    save_name += '_weight'
+if args.gender:
+    save_name += '_gender'
+
+model_folder = Path('./trained_models')
+metrics_folder = Path('./metrics')
+
+if not model_folder.exists():
+    model_folder.mkdir()
+if not metrics_folder.exists():
+    metrics_folder.mkdir()
+
+save_metrics = os.path.join(metrics_folder, f'training_metrics_{save_name}.csv')
+save_model = os.path.join(model_folder, f'measure_net_{save_name}.pt')
+
 metrics_df = pd.DataFrame(metrics)
-metrics_df.to_csv('training_metrics2.csv', index=False)
+metrics_df.to_csv(save_metrics, index=False)
 
 # Save the model
 if best_model_state:
-    torch.save(best_model_state, 'best_measure_net_model2.pth')
+    torch.save(best_model_state, f'measure_net_{save_name}.pt')
