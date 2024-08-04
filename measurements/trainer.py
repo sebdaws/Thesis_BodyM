@@ -119,7 +119,7 @@ if freeze:
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-print_freq = 20
+print_freq = 50
 
 # Training loop
 num_epochs = 10
@@ -145,7 +145,7 @@ metrics = {
 
 best_val_loss = float('inf')
 best_model_state = None
-
+print(f'Starting training loop: {num_epochs} epochs, backbone weights frozen: {freeze}')
 for epoch in range(num_epochs):
     model.train()
     epoch_loss = 0.0
@@ -260,8 +260,8 @@ for epoch in range(num_epochs):
 
 # Save metrics to CSV file
 metrics_df = pd.DataFrame(metrics)
-metrics_df.to_csv('training_metrics.csv', index=False)
+metrics_df.to_csv('training_metrics2.csv', index=False)
 
 # Save the model
 if best_model_state:
-    torch.save(best_model_state, 'best_measure_net_model.pth')
+    torch.save(best_model_state, 'best_measure_net_model2.pth')
