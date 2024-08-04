@@ -12,6 +12,8 @@ from build_model import MeasureNet
 
 torch.manual_seed(42)
 
+freeze = False
+
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -107,11 +109,12 @@ for inputs, targets in train_loader:
 # Instantiate the network and print its architecture
 model = MeasureNet(num_outputs=len(columns_list), in_channels=inputs.shape[1]).to(device)
 
-for param in model.parameters():
-    param.requires_grad = False
+if freeze:
+    for param in model.parameters():
+        param.requires_grad = False
 
-for param in model.mlp.parameters():
-    param.requires_grad = True
+    for param in model.mlp.parameters():
+        param.requires_grad = True
 
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -180,7 +183,7 @@ for epoch in range(num_epochs):
             train_tp_metrics[key] += batch_tp_metrics[key]
 
         if (i+1)%print_freq==0:
-            print(f'Batch {i+1}/{len(train_loader)}, Loss: {batch_loss/print_freq:.4f}')
+            print(f'Epoch {epoch+1}, Batch {i+1}/{len(train_loader)}, Loss: {batch_loss/print_freq:.4f}')
             batch_loss = 0.0
     
     train_rmse /= len(train_loader)
@@ -198,6 +201,7 @@ for epoch in range(num_epochs):
     val_rmse, val_mae, val_explained_variance, val_r2 = 0.0, 0.0, 0.0, 0.0
     val_tp_metrics = {"TP50": 0.0, "TP75": 0.0, "TP90": 0.0}
     with torch.no_grad():
+        print('Performing Validation Loop')
         for i, (inputs, targets) in enumerate(val_loader):
             inputs = inputs.to(device)
             targets = targets.to(device)
