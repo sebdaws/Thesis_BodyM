@@ -65,7 +65,7 @@ for inputs, targets in test_loader:
 model = MeasureNet(num_outputs=len(columns_list), num_m=num_m, m_inputs=args.m_inputs).to(device)
 
 try:
-    model.load_state_dict(args.model_path)
+    model.load_state_dict(torch.load(args.model_path))
 except:
     raise ValueError('Make sure the arguments match the model structure.')
 
