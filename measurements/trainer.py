@@ -54,8 +54,6 @@ def main():
     parser.add_argument('--m_inputs', required=False, action='store_false', help='Specify wether additional measurements are added at backbone input or mlp input (i.e. after feature extraction).')
     args = parser.parse_args()
 
-    print(args.m_inputs)
-
     # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -165,6 +163,11 @@ def main():
     best_val_loss = float('inf')
     best_model_state = None
     print(f'Starting training loop: {args.num_epochs} epochs, backbone weights frozen: {args.freeze}')
+    if args.m_inputs:
+        add = 'Backbone'
+    else:
+        add = 'MLP'
+    print(f'Additional measurements input at {add}')
     for epoch in range(args.num_epochs):
         model.train()
         epoch_loss = 0.0
@@ -324,7 +327,7 @@ def main():
 
     # Save the model
     if best_model_state:
-        torch.save(best_model_state, f'measure_net_{save_name}.pt')
+        torch.save(best_model_state, save_model)
 
 
 if __name__ == '__main__':
