@@ -52,6 +52,8 @@ transform = T.Compose([
 test_dataset = BodyMeasurementDataset(test_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)#, num_workers=4)
 
+print(f'Loaded Data, {len(test_dataset)} samples')
+
 for inputs, targets in test_loader:
     if args.m_inputs:
         images = inputs
@@ -69,12 +71,15 @@ try:
 except:
     raise ValueError('Make sure the arguments match the model structure.')
 
+print('Loaded Model with weights')
+
 criterion = nn.MSELoss()
 
 model.eval()
 mse = 0.0
 rmse, mae, exp_var, r2 = 0.0, 0.0, 0.0, 0.0
 tp_metrics = {"TP50": 0.0, "TP75": 0.0, "TP90": 0.0}
+print(f'Testing {args.model_path}')
 with torch.no_grad():
     print('Performing Testing...')
     for i, (inputs, targets) in enumerate(test_loader):
