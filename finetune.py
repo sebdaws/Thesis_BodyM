@@ -14,7 +14,7 @@ import argparse
 
 from load_data import SegmentationDataset
 from utils import iou_calc, pixel_accuracy
-from model import load_model
+from get_model import load_model
 
 random.seed(42)
 np.random.seed(42)

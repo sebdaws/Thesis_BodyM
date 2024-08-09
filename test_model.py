@@ -9,6 +9,7 @@ from load_data import SegmentationDataset
 import random
 import argparse
 import torch.nn.functional as F
+import pandas as pd
 
 from utils import plt_images, iou_calc, pixel_accuracy
 from get_model import load_model
@@ -137,6 +138,29 @@ def main():
     print(f'Test Pixel Accuracy: {accs[0]:.4f}\n')
     print(f'Lowest IoU Score: {ious[1]:.4f}')
     print(f'Lowest Pixel Accuracy: {accs[1]:.4f}')
+
+    metrics = {
+        'model': args.weights,
+        'F1': f1_score,
+        'Iou': ious[0],
+        'min_IoU': ious[1],
+        'Pix_Acc': accs[0],
+        'min_Pix_Acc': accs[1]
+    }
+
+    metrics_df = pd.DataFrame([metrics])
+
+    # Create directory if it doesn't exist
+    os.makedirs('test_metrics', exist_ok=True)
+
+    # Save to CSV
+    csv_path = os.path.join('test_metrics', 'metrics.csv')
+    if not os.path.isfile(csv_path):
+        metrics_df.to_csv(csv_path, index=False)
+    else:
+        metrics_df.to_csv(csv_path, mode='a', header=False, index=False)
+
+    print(f'Metrics saved to {csv_path}')
 
 if __name__ == '__main__':
     main()
