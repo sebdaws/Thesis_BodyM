@@ -118,7 +118,7 @@ def sampling_points(mask, N, k=3, beta=0.75, training=True):
     return torch.cat([importance, coverage], 1).to(device)
 
 
-def load_model(backbone, finetune=False, pointrend=False):
+def load_model(backbone, freeze=False, pointrend=False):
     if pointrend:
         model = PointRendSemanticFPN(num_classes=1)
         print(f'Semantic FPN with PointRend')
@@ -140,7 +140,7 @@ def load_model(backbone, finetune=False, pointrend=False):
     
         print(f'DeepLabV3, {backbone} backbone')
 
-        if finetune:
+        if freeze:
             model.aux_classifier = None
             model.classifier = SigmoidDeepLabHead(channels, 1)
 

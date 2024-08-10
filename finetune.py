@@ -137,6 +137,7 @@ def main():
     parser.add_argument('--num_epochs', required=False, type=int, default=3, help='Number of epochs on which to train. (default is 20)')
     parser.add_argument('--batch_size', required=False, type=int, default=4, help='Size of batch for training. (default is 4)')
     parser.add_argument('--resize', required=False, type=int, default=512, help='Size of images to resize to.')
+    parser.add_argument('--freeze', required=False, action='store_true', default=False, help='Specify whether to freeze backbone weights.')
     args = parser.parse_args()
 
     if torch.cuda.is_available():
@@ -146,7 +147,7 @@ def main():
     print(f'Device: {device}')
 
 
-    model = load_model(args.backbone, finetune=True).to(device)
+    model = load_model(args.backbone, freeze=args.freeze).to(device)
 
     params_to_update = [param for param in model.parameters() if param.requires_grad]
     optimizer = torch.optim.Adam(params_to_update, lr=0.001)#, momentum=0.9)
@@ -189,10 +190,15 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
+    if args.freeze:
+        str_fr = 'f'
+    else:
+        str_fr = 'nf'
+
     metrics_folder = Path('./finetune_metrics')
     if not metrics_folder.exists():
         metrics_folder.mkdir()
-    metrics_file = os.path.join(metrics_folder, f'{args.backbone}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.csv')
+    metrics_file = os.path.join(metrics_folder, f'{args.backbone}_{str_fr}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.csv')
 
     trained_model = train_model(
         model, 
@@ -208,7 +214,7 @@ def main():
     if not save_folder.exists():
         save_folder.mkdir()
 
-    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.backbone}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
+    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.backbone}_{str_nf}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
 
 if __name__ == '__main__':
     main()
