@@ -67,6 +67,8 @@ def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs,
             # zero the parameter gradients
             optimizer.zero_grad()
             outputs = model(images)['out']
+            print(outputs.shape)
+            print(masks.shape)
 
             loss = criterion(outputs, masks)
             preds = outputs.data.cpu().numpy()
@@ -147,7 +149,7 @@ def main():
     print(f'Device: {device}')
 
 
-    model = load_model(args.backbone, freeze=args.freeze).to(device)
+    model = load_model(args.backbone, finetune=True, freeze=args.freeze).to(device)
 
     params_to_update = [param for param in model.parameters() if param.requires_grad]
     optimizer = torch.optim.Adam(params_to_update, lr=0.001)#, momentum=0.9)
@@ -214,7 +216,7 @@ def main():
     if not save_folder.exists():
         save_folder.mkdir()
 
-    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.backbone}_{str_nf}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
+    torch.save(trained_model.state_dict(), os.path.join(save_folder, f'{args.backbone}_{str_fr}_{int(args.percent*100)}p_{args.num_epochs}e_{args.resize}px.pt'))
 
 if __name__ == '__main__':
     main()
