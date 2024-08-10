@@ -67,8 +67,6 @@ def train_model(model, trainloader, validloader, optimizer, metpath, num_epochs,
             # zero the parameter gradients
             optimizer.zero_grad()
             outputs = model(images)['out']
-            print(outputs.shape)
-            print(masks.shape)
 
             loss = criterion(outputs, masks)
             preds = outputs.data.cpu().numpy()
