@@ -1,11 +1,26 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+def unnormalize(img, mean, std):
+    """Unnormalize an image that was normalized using the provided mean and std."""
+    img = img.numpy().transpose((1, 2, 0))  # Convert from Tensor shape (C, H, W) to (H, W, C)
+    img = img * std + mean  # Unnormalize
+    img = np.clip(img, 0, 1)  # Clip to ensure the values are in the range [0, 1]
+    return img
+
+
+
 def plt_images(image, mask, pred, threshold=0.5):
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+
+    # Unnormalize the image
+    unnorm_image = unnormalize(image.cpu(), mean, std)
+
     pred = (pred > threshold).float()
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 3, 1)
-    plt.imshow(image.cpu().permute(1, 2, 0))
+    plt.imshow(unnorm_image)
     plt.title('Image')
     plt.axis('off')
 
