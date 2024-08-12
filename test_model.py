@@ -137,9 +137,9 @@ def main():
     print(f'Lowest Pixel Accuracy: {accs[1]:.4f}')
 
     if args.model_path:
-        model_name = os.path.basename(args.model_path)
+        model_name = os.path.basename(args.model_path)[:-3] + '.csv'
     else:
-        model_name = 'baseline'
+        model_name = 'baseline_' + args.backbone + '.csv'
 
     metrics = {
         'model_path': model_name,
