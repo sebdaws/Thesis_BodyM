@@ -80,17 +80,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--backbone', required=True, type=str, default='resnet50', help='Specify path to weights.')
     parser.add_argument('--pointrend', action='store_true', default=False)
-    parser.add_argument('--weights', required=False, type=str, default=False, help='Specify path to weights.')
+    parser.add_argument('--model_path', required=False, type=str, default=False, help='Specify path to weights.')
     parser.add_argument('--preview', action='store_true', help='Select whether to plot preview.')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'Using device: {device}')
     
-    model_path = args.weights
-    model = load_model(args.backbone, finetune=args.weights, pointrend=args.pointrend)
-    if model_path:
-        model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+    model = load_model(args.backbone, finetune=args.model_path, pointrend=args.pointrend)
+    if args.model_path:
+        model.load_state_dict(torch.load(args.model_path, map_location=device, weights_only=True))
     model.to(device)
     model.eval()
 
@@ -129,7 +128,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, drop_last=True)
     
     print(f'Testing model, {len(test_dataset)} samples')
-    f1_score, ious, accs = test_model(model, test_loader, args, device, finetune=args.weights, preview=args.preview)
+    f1_score, ious, accs = test_model(model, test_loader, args, device, finetune=args.model_path, preview=args.preview)
     print(f'Test F1 Score: {f1_score:.4f}')
     # print(f'Test AUROC Score: {auroc_score:.4f}')
     print(f'Test IoU Score: {ious[0]:.4f}')
@@ -137,8 +136,8 @@ def main():
     print(f'Lowest IoU Score: {ious[1]:.4f}')
     print(f'Lowest Pixel Accuracy: {accs[1]:.4f}')
 
-    if model_path:
-        model_name = os.path.basename(model_path)
+    if args.model_path:
+        model_name = os.path.basename(args.model_path)
     else:
         model_name = 'baseline'
 
