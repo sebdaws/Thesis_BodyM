@@ -1,0 +1,2 @@
+model_path,backbone,Iou,Pix_Acc,F1,min_IoU,min_Pix_Acc
+baseline_mobilenet.csv,mobilenet,0.7874033671489256,0.9779860364842116,0.8822546731421651,0.0,0.9146881103515625
