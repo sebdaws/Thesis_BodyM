@@ -28,8 +28,6 @@ def test_model(model, dataloader, args, device, finetune=True, preview=False):
 
     pixacc_scores = []
     min_acc = 1
-
-    print('Testing model...')
     
     with torch.no_grad():
         for i, (images, masks) in enumerate(dataloader):
@@ -68,8 +66,8 @@ def test_model(model, dataloader, args, device, finetune=True, preview=False):
                 plt_images(images[0], masks[0], outputs[0])
                 return
             
-            if (i+1)%10 == 0:
-                print(f'Batch {i+1}/{len(dataloader)}, IoU: {iou_score_val:.4f}, Acc: {pixacc_score_val:.4f}')
+            # if (i+1)%10 == 0:
+            #     print(f'Batch {i+1}/{len(dataloader)}, IoU: {iou_score_val:.4f}, Acc: {pixacc_score_val:.4f}')
     
     all_preds = np.array(all_preds)
     all_targets = np.array(all_targets)
@@ -83,7 +81,7 @@ def main():
     parser.add_argument('--backbone', required=True, type=str, default='resnet50', help='Specify path to weights.')
     parser.add_argument('--pointrend', action='store_true', default=False)
     parser.add_argument('--weights', required=False, type=str, default=False, help='Specify path to weights.')
-    parser.add_argument('--preview', required=False, type=bool, default=False, help='Select whether to plot preview.')
+    parser.add_argument('--preview', action='store_true', help='Select whether to plot preview.')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -97,13 +95,13 @@ def main():
     model.eval()
 
     im_transform = T.Compose([
-            T.Resize((512, 512)),
-            T.ToTensor(),
-            # T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        T.Resize((512, 512)),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
     mask_transform = T.Compose([
-        T.Resize((128, 128)),
+        T.Resize((512, 512)),
         T.ToTensor(),
     ])
 
@@ -130,7 +128,7 @@ def main():
 
     test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, drop_last=True)
     
-    # Evaluate the model
+    print(f'Testing model, {len(test_dataset)} samples')
     f1_score, ious, accs = test_model(model, test_loader, args, device, finetune=args.weights, preview=args.preview)
     print(f'Test F1 Score: {f1_score:.4f}')
     # print(f'Test AUROC Score: {auroc_score:.4f}')
@@ -139,12 +137,18 @@ def main():
     print(f'Lowest IoU Score: {ious[1]:.4f}')
     print(f'Lowest Pixel Accuracy: {accs[1]:.4f}')
 
+    if model_path:
+        model_name = os.path.basename(model_path)
+    else:
+        model_name = 'baseline'
+
     metrics = {
-        'model': args.weights,
-        'F1': f1_score,
+        'model_path': model_name,
+        'backbone': args.backbone,
         'Iou': ious[0],
-        'min_IoU': ious[1],
         'Pix_Acc': accs[0],
+        'F1': f1_score,
+        'min_IoU': ious[1],
         'min_Pix_Acc': accs[1]
     }
 
@@ -154,7 +158,7 @@ def main():
     os.makedirs('test_metrics', exist_ok=True)
 
     # Save to CSV
-    csv_path = os.path.join('test_metrics', 'metrics.csv')
+    csv_path = os.path.join('test_metrics', model_name)
     if not os.path.isfile(csv_path):
         metrics_df.to_csv(csv_path, index=False)
     else:
