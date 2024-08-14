@@ -79,6 +79,8 @@ model.eval()
 mse = 0.0
 rmse, mae, exp_var, r2 = 0.0, 0.0, 0.0, 0.0
 tp_metrics = {"TP50": 0.0, "TP75": 0.0, "TP90": 0.0}
+class_metrics = {col: {'mse': 0.0, 'rmse': 0.0, 'mae': 0.0, 'TP50': 0.0, 'TP75': 0.0, 'TP90': 0.0} for col in columns_list}
+
 print(f'Testing {args.model_path}')
 with torch.no_grad():
     print('Performing Testing...')
@@ -109,6 +111,20 @@ with torch.no_grad():
         batch_tp_metrics = quantile_metrics(outputs, targets)
         for key in tp_metrics:
             tp_metrics[key] += batch_tp_metrics[key]
+        
+        # Calculate class-wise metrics
+        for j, col in enumerate(columns_list):
+            class_mse = nn.MSELoss()(outputs[:, j], targets[:, j]).item()
+            class_rmse = torch.sqrt(torch.tensor(class_mse)).item()
+            class_mae = nn.L1Loss()(outputs[:, j], targets[:, j]).item()
+
+            class_metrics[col]['mse'] += class_mse
+            class_metrics[col]['rmse'] += class_rmse
+            class_metrics[col]['mae'] += class_mae
+
+            quantiles = quantile_metrics(outputs[:, j].unsqueeze(1), targets[:, j].unsqueeze(1))
+            for key in ['TP50', 'TP75', 'TP90']:
+                class_metrics[col][key] += quantiles[key]
 
 mse /= len(test_loader)
 rmse /= len(test_loader)
@@ -117,6 +133,10 @@ exp_var /= len(test_loader)
 r2 /= len(test_loader)
 for key in tp_metrics:
     tp_metrics[key] /= len(test_loader)
+
+for col in columns_list:
+    for metric in class_metrics[col]:
+        class_metrics[col][metric] /= len(test_loader)
 
 print(f'MSE: {mse:.4f}')
 print(f'RMSE: {rmse:.4f}')
@@ -153,3 +173,9 @@ else:
     metrics_df.to_csv(csv_path, mode='a', header=False, index=False)
 
 print(f'Metrics saved to {csv_path}')
+
+# Save class-wise metrics to separate CSV
+class_metrics_df = pd.DataFrame(class_metrics).T
+class_metrics_path = os.path.join('test_metrics', 'class_metrics.csv')
+class_metrics_df.to_csv(class_metrics_path, index=True)
+print(f'Class-wise metrics saved to {class_metrics_path}')

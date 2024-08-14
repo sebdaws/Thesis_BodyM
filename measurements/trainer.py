@@ -62,18 +62,18 @@ def main():
     val_dir = 'data/dataset/val'
     test_dir = 'data/dataset/test'
 
-    # Paths to data directories and metadata files
-    train_images_dir = os.path.join(train_dir, 'images')
-    train_masks_dir = os.path.join(train_dir, 'masks')
-    train_metadata_file = os.path.join(train_dir, 'metadata.csv')
+    # # Paths to data directories and metadata files
+    # train_images_dir = os.path.join(train_dir, 'images')
+    # train_masks_dir = os.path.join(train_dir, 'masks')
+    # train_metadata_file = os.path.join(train_dir, 'metadata.csv')
 
-    val_images_dir = os.path.join(val_dir, 'images')
-    val_masks_dir = os.path.join(val_dir, 'masks')
-    val_metadata_file = os.path.join(val_dir, 'metadata.csv')
+    # val_images_dir = os.path.join(val_dir, 'images')
+    # val_masks_dir = os.path.join(val_dir, 'masks')
+    # val_metadata_file = os.path.join(val_dir, 'metadata.csv')
 
-    test_images_dir = os.path.join(test_dir, 'images')
-    test_masks_dir = os.path.join(test_dir, 'masks')
-    test_metadata_file = os.path.join(test_dir, 'metadata.csv')
+    # test_images_dir = os.path.join(test_dir, 'images')
+    # test_masks_dir = os.path.join(test_dir, 'masks')
+    # test_metadata_file = os.path.join(test_dir, 'metadata.csv')
 
     columns_list = [
         'Ankle Circumference (mm)',
