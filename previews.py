@@ -2,12 +2,12 @@ import torch
 import torchvision.transforms as T
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import argparse
 import os
 
 from get_model import load_model
-from utils import plt_images
+from utils import plt_images, iou_calc
 
 def load_image(image_path):
     """Load an image from a file path and apply necessary transformations."""
@@ -30,24 +30,50 @@ def load_mask(mask_path):
     mask = transform(mask).unsqueeze(0)
     return mask
 
-def save_prediction(output, model_name, output_dir='preview'):
-    """Save the model prediction to a file."""
-    output_image = output.squeeze().cpu().numpy()
-    output_image = (output_image * 255).astype(np.uint8)  # Convert to uint8
+def overlay_mask_on_image(image, mask, iou_score=None, color=[0, 255, 0], alpha=0.5):
+    """Overlay the mask on the image and add IoU score as text."""
+    # Denormalize the image
+    image_np = image.permute(1, 2, 0).cpu().numpy()  # Convert to HWC format
+    image_np = (image_np * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])) * 255.0
+    image_np = image_np.astype(np.uint8)
+
+    mask_np = mask.squeeze().cpu().numpy()
+    mask_np = (mask_np > 0.5).astype(np.uint8)       # Convert mask to binary
+
+    overlay = image_np.copy()
+    overlay[mask_np > 0] = overlay[mask_np > 0] * (1 - alpha) + np.array(color) * alpha
+
+    overlay_image = Image.fromarray(overlay)
+
+    if iou_score is not None:
+        draw = ImageDraw.Draw(overlay_image)
+        font = ImageFont.load_default(size=30)
+        text = f"IoU: {iou_score:.4f}"
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_position = (10, 10)
+        draw.rectangle([text_position, (text_position[0] + text_bbox[2], text_position[1] + text_bbox[3])], fill="black")
+        draw.text(text_position, text, fill="white", font=font)
+
+    return overlay_image
+
+def save_prediction(image, mask, model_name, iou_score, output_dir='preview'):
+    """Save the model prediction to a file with mask overlay."""
+    overlay = overlay_mask_on_image(image.squeeze(0), mask, iou_score)
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Save the output image with the model's base name
     output_path = os.path.join(output_dir, f"{model_name}.png")
-    Image.fromarray(output_image).save(output_path)
-    print(f"Prediction saved to {output_path}")
+    overlay.save(output_path)
+    print(f"Prediction with mask overlay saved to {output_path}")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--backbone', required=True, type=str, default='resnet50', help='Specify path to weights.')
     parser.add_argument('--model_path', required=False, type=str, default=False, help='Specify path to weights.')
+    parser.add_argument('--plot', default=False, action='store_true', help='Specify whether to plot the results.')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -79,18 +105,20 @@ def main():
     with torch.no_grad():
         if args.model_path==False:
             output = model(image)['out'].argmax(1).unsqueeze(1)
-            output = (output == 15).float()
-            pred = (output > 0.5).byte().cpu().numpy()
+            output = (output == 15)
+            pred = (output > 0.5).float()
         else:
             output = model(image)['out']
             # pred = output.data.cpu().numpy()
             pred = (output > 0.5).float()
-        
-        # Save the output prediction
-        save_prediction(pred, model_base_name)
 
-    # Plot the results
-    plt_images(image.squeeze(0), mask, output)
+        iou_score = iou_calc(mask.data.cpu().numpy(), pred.cpu().numpy())
+        print(iou_score)
+        
+        save_prediction(image, pred, model_base_name, iou_score)
+
+    if args.plot:
+        plt_images(image.squeeze(0), mask, output)
 
 if __name__ == '__main__':
     main()
