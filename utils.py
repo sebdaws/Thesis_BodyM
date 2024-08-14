@@ -3,6 +3,7 @@ import numpy as np
 
 def unnormalize(img, mean, std):
     """Unnormalize an image that was normalized using the provided mean and std."""
+    print(img.shape)
     img = img.numpy().transpose((1, 2, 0))  # Convert from Tensor shape (C, H, W) to (H, W, C)
     img = img * std + mean  # Unnormalize
     img = np.clip(img, 0, 1)  # Clip to ensure the values are in the range [0, 1]

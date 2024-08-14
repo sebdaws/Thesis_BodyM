@@ -17,6 +17,7 @@ from get_model import load_model
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
+torch.cuda.manual_seed(42)
 
 def test_model(model, dataloader, args, device, finetune=True, preview=False):
     criterion = nn.BCELoss()
