@@ -81,7 +81,7 @@ rmse, mae, exp_var, r2 = 0.0, 0.0, 0.0, 0.0
 tp_metrics = {"TP50": 0.0, "TP75": 0.0, "TP90": 0.0}
 
 model_id = os.path.basename(args.model_path).replace('.pt', '')
-class_metrics = {col: {'model_id': model_id, 'mse': 0.0, 'rmse': 0.0, 'mae': 0.0, 'TP50': 0.0, 'TP75': 0.0, 'TP90': 0.0} for col in columns_list}
+class_metrics = {col: {'model_id': model_id, 'mae': 0.0, 'TP50': 0.0, 'TP75': 0.0, 'TP90': 0.0} for col in columns_list}
 
 print(f'Testing {args.model_path}')
 with torch.no_grad():
@@ -116,12 +116,8 @@ with torch.no_grad():
         
         # Calculate class-wise metrics
         for j, col in enumerate(columns_list):
-            class_mse = nn.MSELoss()(outputs[:, j], targets[:, j]).item()
-            class_rmse = torch.sqrt(torch.tensor(class_mse)).item()
             class_mae = nn.L1Loss()(outputs[:, j], targets[:, j]).item()
 
-            class_metrics[col]['mse'] += class_mse
-            class_metrics[col]['rmse'] += class_rmse
             class_metrics[col]['mae'] += class_mae
 
             quantiles = quantile_metrics(outputs[:, j].unsqueeze(1), targets[:, j].unsqueeze(1))
@@ -137,7 +133,7 @@ for key in tp_metrics:
     tp_metrics[key] /= len(test_loader)
 
 for col in columns_list:
-    for metric in ['mse', 'rmse', 'mae', 'TP50', 'TP75', 'TP90']:
+    for metric in ['mae', 'TP50', 'TP75', 'TP90']:
         class_metrics[col][metric] /= len(test_loader)
 
 print(f'MSE: {mse:.4f}')
@@ -179,11 +175,12 @@ print(f'Metrics saved to {csv_path}')
 # Save class-wise metrics to separate CSV
 class_metrics_df = pd.DataFrame(class_metrics).T.reset_index()
 class_metrics_df.rename(columns={'index': 'Measurement'}, inplace=True)
+class_metrics_df.set_index(['model_id', 'Measurement'], inplace=True)
 class_metrics_path = os.path.join('test_metrics', 'class_metrics.csv')
 
 if not os.path.isfile(class_metrics_path):
-    class_metrics_df.to_csv(class_metrics_path, index=False)
+    class_metrics_df.to_csv(class_metrics_path, index=True)
 else:
-    class_metrics_df.to_csv(class_metrics_path, mode='a', header=False, index=False)
+    class_metrics_df.to_csv(class_metrics_path, mode='a', header=False, index=True)
 
 print(f'Class-wise metrics saved to {class_metrics_path}')
