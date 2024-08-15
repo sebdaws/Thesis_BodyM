@@ -79,7 +79,9 @@ model.eval()
 mse = 0.0
 rmse, mae, exp_var, r2 = 0.0, 0.0, 0.0, 0.0
 tp_metrics = {"TP50": 0.0, "TP75": 0.0, "TP90": 0.0}
-class_metrics = {col: {'mse': 0.0, 'rmse': 0.0, 'mae': 0.0, 'TP50': 0.0, 'TP75': 0.0, 'TP90': 0.0} for col in columns_list}
+
+model_id = os.path.basename(args.model_path).replace('.pt', '')
+class_metrics = {col: {'model_id': model_id, 'mse': 0.0, 'rmse': 0.0, 'mae': 0.0, 'TP50': 0.0, 'TP75': 0.0, 'TP90': 0.0} for col in columns_list}
 
 print(f'Testing {args.model_path}')
 with torch.no_grad():
@@ -135,7 +137,7 @@ for key in tp_metrics:
     tp_metrics[key] /= len(test_loader)
 
 for col in columns_list:
-    for metric in class_metrics[col]:
+    for metric in ['mse', 'rmse', 'mae', 'TP50', 'TP75', 'TP90']:
         class_metrics[col][metric] /= len(test_loader)
 
 print(f'MSE: {mse:.4f}')
@@ -175,7 +177,13 @@ else:
 print(f'Metrics saved to {csv_path}')
 
 # Save class-wise metrics to separate CSV
-class_metrics_df = pd.DataFrame(class_metrics).T
+class_metrics_df = pd.DataFrame(class_metrics).T.reset_index()
+class_metrics_df.rename(columns={'index': 'Measurement'}, inplace=True)
 class_metrics_path = os.path.join('test_metrics', 'class_metrics.csv')
-class_metrics_df.to_csv(class_metrics_path, index=True)
+
+if not os.path.isfile(class_metrics_path):
+    class_metrics_df.to_csv(class_metrics_path, index=False)
+else:
+    class_metrics_df.to_csv(class_metrics_path, mode='a', header=False, index=False)
+
 print(f'Class-wise metrics saved to {class_metrics_path}')
