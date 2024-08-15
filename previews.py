@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import argparse
 import os
+from scipy.ndimage import gaussian_filter
 
 from get_model import load_model
 from utils import plt_images, iou_calc
@@ -112,7 +113,16 @@ def main():
             # pred = output.data.cpu().numpy()
             pred = (output > 0.5).float()
 
-        iou_score = iou_calc(mask.data.cpu().numpy(), pred.cpu().numpy())
+        pred_np = pred.squeeze().cpu().numpy()
+
+        # Apply Gaussian smoothing
+        smoothed_pred_np = gaussian_filter(pred_np, sigma=1)  # Adjust sigma as needed
+
+        # Convert the smoothed prediction back to a tensor
+        smoothed_pred = torch.tensor(smoothed_pred_np).unsqueeze(0).unsqueeze(0).to(device)
+        iou_score = iou_calc(mask.data.cpu().numpy(), smoothed_pred.cpu().numpy())
+
+        # iou_score = iou_calc(mask.data.cpu().numpy(), pred.cpu().numpy())
         print(iou_score)
         
         save_prediction(image, pred, model_base_name, iou_score)
