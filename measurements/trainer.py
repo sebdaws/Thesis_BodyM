@@ -10,7 +10,7 @@ import argparse
 from pathlib import Path
 
 from dataload import BodyMeasurementDataset
-from build_model import MeasureNet
+from build_model import MeasureNet, MeasureViT
 
 torch.manual_seed(42)
 
@@ -51,7 +51,8 @@ def main():
     parser.add_argument('--weight', required=False, action='store_true', help='Specify wether to use the weight as input.')
     parser.add_argument('--gender', required=False, action='store_true', help='Specify wether to use the gender as input.')
     parser.add_argument('--lr', required=False, type=float, default=0.001, help='Specify learning rate.')
-    parser.add_argument('--m_inputs', required=False, action='store_false', help='Specify wether additional measurements are added at backbone input or mlp input (i.e. after feature extraction).')
+    parser.add_argument('--m_inputs', required=False, action='store_false', help='Specify wether additional measurements are added at backbone input or mlp input. True=backbone, False=MLP.')
+    parser.add_argument('--vit', required=False, action='store_false', help='Specify whether to use ViTPose.')
     args = parser.parse_args()
 
     # Set device
@@ -61,19 +62,6 @@ def main():
     train_dir = 'data/dataset/train'
     val_dir = 'data/dataset/val'
     test_dir = 'data/dataset/test'
-
-    # # Paths to data directories and metadata files
-    # train_images_dir = os.path.join(train_dir, 'images')
-    # train_masks_dir = os.path.join(train_dir, 'masks')
-    # train_metadata_file = os.path.join(train_dir, 'metadata.csv')
-
-    # val_images_dir = os.path.join(val_dir, 'images')
-    # val_masks_dir = os.path.join(val_dir, 'masks')
-    # val_metadata_file = os.path.join(val_dir, 'metadata.csv')
-
-    # test_images_dir = os.path.join(test_dir, 'images')
-    # test_masks_dir = os.path.join(test_dir, 'masks')
-    # test_metadata_file = os.path.join(test_dir, 'metadata.csv')
 
     columns_list = [
         'Ankle Circumference (mm)',
@@ -100,9 +88,6 @@ def main():
         T.ToTensor()
     ])
 
-    # get_weight = False
-    # get_gender = False
-
     # Create datasets
     train_dataset = BodyMeasurementDataset(train_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
     val_dataset = BodyMeasurementDataset(val_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
@@ -123,8 +108,12 @@ def main():
         print(f'Inputs of shape {images.shape}')
         break
 
-    # Instantiate the network and print its architecture
-    model = MeasureNet(num_outputs=len(columns_list), num_m=num_m, m_inputs=args.m_inputs).to(device)
+    if args.vit:
+        vitpose_name = 'ViTPose_base_coco_256x192'
+        vitpose_path = 'pretrained_models/weights/vitpose-b.pth'
+        model = MeasureViT(num_outputs=len(columns_list), vitpose_name=vitpose_name, vitpose_path=vitpose_path).to(device)
+    else:
+        model = MeasureNet(num_outputs=len(columns_list), num_m=num_m, m_inputs=args.m_inputs).to(device)
 
     if args.freeze:
         for param in model.parameters():
@@ -300,6 +289,10 @@ def main():
     # Save metrics to CSV file
 
     save_name = f'{args.num_epochs}e'
+    if args.vit:
+        save_name = 'MeasureViT_' + save_name
+    else:
+        save_name = 'MeasureNet_' + save_name
     if args.freeze:
         save_name += '_freeze'
     if args.weight:
@@ -309,7 +302,7 @@ def main():
     if args.m_inputs:
         save_name += '_mibbn'
     else:
-        save_name += '_mimpl'
+        save_name += '_mimlp'
 
     model_folder = Path('./trained_models')
     metrics_folder = Path('./metrics')
@@ -320,7 +313,7 @@ def main():
         metrics_folder.mkdir()
 
     save_metrics = os.path.join(metrics_folder, f'training_metrics_{save_name}.csv')
-    save_model = os.path.join(model_folder, f'measure_net_{save_name}.pt')
+    save_model = os.path.join(model_folder, f'{save_name}.pt')
 
     metrics_df = pd.DataFrame(metrics)
     metrics_df.to_csv(save_metrics, index=False)

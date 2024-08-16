@@ -3,4 +3,5 @@ CAESAR/
 trained_models/
 pretrained_models/
 detectron2/
+measurements/pretrained_models/weights/
 
