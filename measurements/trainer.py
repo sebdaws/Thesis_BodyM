@@ -8,6 +8,7 @@ from sklearn.metrics import explained_variance_score
 import pandas as pd
 import argparse
 from pathlib import Path
+import time
 
 from dataload import BodyMeasurementDataset
 from build_model import MeasureNet, MeasureViT
@@ -52,7 +53,7 @@ def main():
     parser.add_argument('--gender', required=False, action='store_true', help='Specify wether to use the gender as input.')
     parser.add_argument('--lr', required=False, type=float, default=0.001, help='Specify learning rate.')
     parser.add_argument('--m_inputs', required=False, action='store_false', help='Specify wether additional measurements are added at backbone input or mlp input. True=backbone, False=MLP.')
-    parser.add_argument('--vit', required=False, action='store_false', help='Specify whether to use ViTPose.')
+    parser.add_argument('--vit', required=False, action='store_true', help='Specify whether to use ViTPose.')
     args = parser.parse_args()
 
     # Set device
@@ -83,21 +84,30 @@ def main():
     ]
 
     # Define transformations
-    transform = T.Compose([
-        T.Resize((640, 480)),
-        T.ToTensor()
-    ])
-
+    if  args.vit:
+        transform = T.Compose([
+            T.Resize((256, 192)),
+            T.ToTensor()
+        ])
+    else:
+        transform = T.Compose([
+            T.Resize((640, 480)),
+            T.ToTensor()
+        ])
+    print('Loading data...')
     # Create datasets
-    train_dataset = BodyMeasurementDataset(train_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
-    val_dataset = BodyMeasurementDataset(val_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
-    test_dataset = BodyMeasurementDataset(test_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
+    if args.vit:
+        concat = 'channel'
+    else:
+        concat = 'width'
+    train_dataset = BodyMeasurementDataset(train_dir, columns_list, transform, m_inputs=args.m_inputs, concat=concat, get_weight=args.weight, get_gender=args.gender)
+    val_dataset = BodyMeasurementDataset(val_dir, columns_list, transform, m_inputs=args.m_inputs, concat=concat, get_weight=args.weight, get_gender=args.gender)
 
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)#, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)#, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)#, num_workers=4)
-
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+    print('Data ready.')
+    
     for inputs, targets in train_loader:
         if args.m_inputs:
             images = inputs
@@ -109,10 +119,12 @@ def main():
         break
 
     if args.vit:
+        print('Loading model: Vision Transformer')
         vitpose_name = 'ViTPose_base_coco_256x192'
         vitpose_path = 'pretrained_models/weights/vitpose-b.pth'
-        model = MeasureViT(num_outputs=len(columns_list), vitpose_name=vitpose_name, vitpose_path=vitpose_path).to(device)
+        model = MeasureViT(num_outputs=len(columns_list), vitpose_name=vitpose_name, vitpose_path=vitpose_path, num_m=num_m).to(device)
     else:
+        print('Loading model: MNasNet')
         model = MeasureNet(num_outputs=len(columns_list), num_m=num_m, m_inputs=args.m_inputs).to(device)
 
     if args.freeze:
@@ -148,7 +160,7 @@ def main():
         "val_TP75": [],
         "val_TP90": []
     }
-
+    start_time = time.time()
     best_val_loss = float('inf')
     best_model_state = None
     print(f'Starting training loop: {args.num_epochs} epochs, backbone weights frozen: {args.freeze}')
@@ -158,6 +170,7 @@ def main():
         add = 'MLP'
     print(f'Additional measurements input at {add}')
     for epoch in range(args.num_epochs):
+        epoch_start_time = time.time()
         model.train()
         epoch_loss = 0.0
         batch_loss = 0.0
@@ -285,8 +298,18 @@ def main():
         metrics["val_TP50"].append(val_tp_metrics["TP50"])
         metrics["val_TP75"].append(val_tp_metrics["TP75"])
         metrics["val_TP90"].append(val_tp_metrics["TP90"])
+        
+        epoch_time = time.time() - epoch_start_time
+        epoch_minutes = int(epoch_time // 60)
+        epoch_seconds = epoch_time % 60
+        print(f"Time taken for epoch {epoch+1}: {epoch_minutes} minutes and {epoch_seconds:.2f} seconds")
+
 
     # Save metrics to CSV file
+    total_time = time.time() - start_time
+    total_minutes = int(total_time // 60)
+    total_seconds = total_time % 60
+    print(f"Total training time: {total_minutes} minutes and {total_seconds:.2f} seconds")
 
     save_name = f'{args.num_epochs}e'
     if args.vit:

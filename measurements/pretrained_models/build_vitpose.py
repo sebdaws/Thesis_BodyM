@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from pretrained_models.vit import ViT
+from pretrained_models.vit import ViT, PatchEmbed
 from pretrained_models.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
 
 models = {
@@ -70,16 +71,66 @@ models = {
 
     }
 
+def modify_patch_embed(patch_embed, new_in_channels):
+    # Create a new convolution layer with the same properties but different in_channels
+    new_conv = nn.Conv2d(
+        in_channels=new_in_channels,
+        out_channels=patch_embed.proj.out_channels,
+        kernel_size=patch_embed.proj.kernel_size,
+        stride=patch_embed.proj.stride,
+        padding=patch_embed.proj.padding,
+        bias=patch_embed.proj.bias is not None
+    )
+
+    # Copy the existing weights to the new conv layer
+    with torch.no_grad():
+        if new_in_channels > patch_embed.proj.in_channels:
+            new_conv.weight[:, :patch_embed.proj.in_channels, :, :] = patch_embed.proj.weight
+            if new_in_channels > patch_embed.proj.in_channels:
+                # Initialize the additional channels' weights as needed
+                new_conv.weight[:, patch_embed.proj.in_channels:, :, :] = torch.mean(patch_embed.proj.weight, dim=1, keepdim=True)
+        else:
+            new_conv.weight = patch_embed.proj.weight[:, :new_in_channels, :, :]
+
+    return new_conv
+
+
+
+class ExtendedPatchEmbed(nn.Module):
+    def __init__(self, original_patch_embed, additional_in_channels):
+        super(ExtendedPatchEmbed, self).__init__()
+        self.original_patch_embed = original_patch_embed
+        self.additional_conv = nn.Conv2d(
+            in_channels=additional_in_channels,
+            out_channels=original_patch_embed.proj.out_channels,
+            kernel_size=original_patch_embed.proj.kernel_size,
+            stride=original_patch_embed.proj.stride,
+            padding=original_patch_embed.proj.padding,
+            bias=original_patch_embed.proj.bias is not None
+        )
+
+    def forward(self, x1, x2):
+        # Split the input into the original and additional channels
+        x_original = x[:, :3, :, :]
+        x_additional = x[:, 3:, :, :]
+
+        # Process the original channels and additional channels separately
+        x1, (Hp, Wp) = self.original_patch_embed(x_original)  # The original patch embedding returns (tensor, (Hp, Wp))
+        x2 = self.additional_conv(x_additional)
+
+        # Ensure the spatial dimensions match before summing
+        if x1.size(2) != x2.size(2) or x1.size(3) != x2.size(3):
+            x2 = F.interpolate(x2, size=(Hp, Wp), mode='bilinear', align_corners=False)
+
+        # Combine the outputs by summing them
+        x = x1 + x2
+
+        # Return the combined tensor and the original (Hp, Wp) tuple
+        return x
+
 def build_vitpose(model_name,checkpoint=None):
     try:
-        # path = 'builder.configs.coco.'+model_name
-        # mod = import_module(
-        #     path
-        # )
-        
-        # model = getattr(mod, "model")
         model = models[model_name]
-        # from path import model
     except:
         raise ValueError('not a correct config')
 
@@ -90,7 +141,7 @@ def build_vitpose(model_name,checkpoint=None):
                                     num_deconv_kernels=model['keypoint_head']['num_deconv_kernels'],
                                     num_deconv_layers=model['keypoint_head']['num_deconv_layers'],
                                     extra=model['keypoint_head']['extra'])
-    # print(head)
+
     backbone = ViT(img_size=model['backbone']['img_size'],
                 patch_size=model['backbone']['patch_size']
                 ,embed_dim=model['backbone']['embed_dim'],
@@ -101,7 +152,7 @@ def build_vitpose(model_name,checkpoint=None):
                 qkv_bias=model['backbone']['qkv_bias'],
                 drop_path_rate=model['backbone']['drop_path_rate']
                 )
-
+    
     class VitPoseModel(nn.Module):
         def __init__(self,backbone,keypoint_head):
             super(VitPoseModel, self).__init__()
@@ -114,7 +165,11 @@ def build_vitpose(model_name,checkpoint=None):
     
     pose = VitPoseModel(backbone, head)
     if checkpoint is not None:
-        check = torch.load(checkpoint)
-        
-        pose.load_state_dict(check['state_dict'])
+        check = torch.load(checkpoint, )
+        pose.load_state_dict(check['state_dict'], strict=False)
     return pose
+
+def modify_model_for_additional_channels(model, num_additional_channels):
+    # Modify the patch embedding layer after loading weights
+    model.backbone.patch_embed = PatchEmbed(img_size=(256, 192), patch_size=16, in_chans=6, embed_dim=768, ratio=1)
+    return model

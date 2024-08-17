@@ -4,7 +4,7 @@ import torchvision.models as models
 from torchvision import transforms
 import timm
 
-from pretrained_models.build_vitpose import build_vitpose
+from pretrained_models.build_vitpose import build_vitpose, modify_model_for_additional_channels
 
 class MeasureNet(nn.Module):
     def __init__(self, num_outputs=14, num_m=1, m_inputs=True):
@@ -34,7 +34,6 @@ class MeasureNet(nn.Module):
         x = self.mlp(x)
         return x
 
-
 class MLPHead(nn.Module):
     def __init__(self, in_features, num_outputs=15):
         super(MLPHead, self).__init__()
@@ -53,13 +52,15 @@ class MLPHead(nn.Module):
 class MeasureViT(nn.Module):
     def __init__(self, vitpose_name, vitpose_path=None, num_outputs=15, num_m=1):
         super(MeasureViT, self).__init__()
-        original_model = build_vitpose(vitpose_name, vitpose_path)
-        self.backbone = original_model.backbone
+        original_model = build_vitpose(vitpose_name, checkpoint=vitpose_path)
+        extended_model = modify_model_for_additional_channels(original_model, num_additional_channels=3)
+        self.backbone = extended_model.backbone
         in_features = 768 * 16 * 12 + num_m
         self.mlp_head = MLPHead(in_features=in_features, num_outputs=num_outputs)
 
     def forward(self, x, m=None):
         x = self.backbone(x)
+        x = x.view(x.size(0), -1)
         if m is not None:
             m = m.to(x.dtype)
             x = torch.cat([x, m], dim=1)

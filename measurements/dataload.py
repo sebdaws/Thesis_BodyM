@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 
 class BodyMeasurementDataset(Dataset):
-    def __init__(self, root_dir, measurement_columns, transform=None, m_inputs=True, get_weight=False, get_gender=False):
+    def __init__(self, root_dir, measurement_columns, transform=None, m_inputs=True, concat='width', get_weight=False, get_gender=False):
         self.images_dir = os.path.join(root_dir, 'images')
         self.metadata = pd.read_csv(os.path.join(root_dir, 'metadata.csv'))
         self.measurement_columns = measurement_columns
@@ -13,6 +13,12 @@ class BodyMeasurementDataset(Dataset):
         self.m_inputs = m_inputs
         self.get_weight = get_weight
         self.get_gender = get_gender
+        if concat == 'width':
+            self.concat_dim = 2
+        elif concat == 'channel':
+            self.concat_dim = 0
+        else:
+            raise NameError('Incorrect dimension, should be channel or width')
 
     def __len__(self):
         return len(self.metadata)
@@ -29,7 +35,7 @@ class BodyMeasurementDataset(Dataset):
             frontal_image = self.transform(frontal_image)
             lateral_image = self.transform(lateral_image)
 
-        images = torch.cat((frontal_image, lateral_image), dim=2)
+        images = torch.cat((frontal_image, lateral_image), dim=self.concat_dim)
 
         targets = torch.tensor(row[self.measurement_columns].values.astype(float), dtype=torch.float32)
 
