@@ -7,7 +7,7 @@ import os
 import pandas as pd 
 
 from dataload import BodyMeasurementDataset
-from build_model import MeasureNet
+from build_model import MeasureNet, MeasureViT
 from utils import check_for_nans, calculate_metrics, quantile_metrics
 
 
@@ -17,6 +17,7 @@ parser.add_argument('--batch_size', required=False, type=int, default=8, help='S
 parser.add_argument('--weight', required=False, action='store_true', help='Specify wether to use the weight as input.')
 parser.add_argument('--gender', required=False, action='store_true', help='Specify wether to use the gender as input.')
 parser.add_argument('--m_inputs', required=False, action='store_false', help='Specify wether additional measurements are added at backbone input or mlp input (i.e. after feature extraction).')
+parser.add_argument('--vit', required=False, action='store_true', help='Specify whether to use ViTPose.')
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -43,13 +44,23 @@ columns_list = [
     'Waist Height, Preferred (mm)'
 ]
 
-# Define transformations
-transform = T.Compose([
-    T.Resize((640, 480)),
-    T.ToTensor()
-])
-
-test_dataset = BodyMeasurementDataset(test_dir, columns_list, transform, m_inputs=args.m_inputs, get_weight=args.weight, get_gender=args.gender)
+if  args.vit:
+    transform = T.Compose([
+        T.Resize((256, 192)),
+        T.ToTensor()
+    ])
+else:
+    transform = T.Compose([
+        T.Resize((640, 480)),
+        T.ToTensor()
+    ])
+print('Loading data...')
+# Create datasets
+if args.vit:
+    concat = 'channel'
+else:
+    concat = 'width'
+test_dataset = BodyMeasurementDataset(test_dir, columns_list, transform, m_inputs=args.m_inputs, concat=concat, get_weight=args.weight, get_gender=args.gender)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)#, num_workers=4)
 
 print(f'Loaded Data, {len(test_dataset)} samples')
@@ -64,7 +75,13 @@ for inputs, targets in test_loader:
     print(f'Inputs of shape {images.shape}')
     break
 
-model = MeasureNet(num_outputs=len(columns_list), num_m=num_m, m_inputs=args.m_inputs).to(device)
+if args.vit:
+    print('Loading model: Vision Transformer')
+    vitpose_name = 'ViTPose_base_coco_256x192'
+    model = MeasureViT(num_outputs=len(columns_list), vitpose_name=vitpose_name, vitpose_path=None, num_m=num_m).to(device)
+else:
+    print('Loading model: MNasNet')
+    model = MeasureNet(num_outputs=len(columns_list), num_m=num_m, m_inputs=args.m_inputs).to(device)
 
 try:
     model.load_state_dict(torch.load(args.model_path))
