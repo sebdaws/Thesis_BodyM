@@ -97,6 +97,11 @@ mse = 0.0
 rmse, mae, exp_var, r2 = 0.0, 0.0, 0.0, 0.0
 tp_metrics = {"TP50": 0.0, "TP75": 0.0, "TP90": 0.0}
 
+gender_metrics = {
+    'male': {'mse': 0.0, 'rmse': 0.0, 'mae': 0.0, 'exp_var': 0.0, 'r2': 0.0, 'tp50': 0.0, 'tp75': 0.0, 'tp90': 0.0, 'count': 0},
+    'female': {'mse': 0.0, 'rmse': 0.0, 'mae': 0.0, 'exp_var': 0.0, 'r2': 0.0, 'tp50': 0.0, 'tp75': 0.0, 'tp90': 0.0, 'count': 0}
+}
+
 model_id = os.path.basename(args.model_path).replace('.pt', '')
 class_metrics = {col: {'model_id': model_id, 'mae': 0.0, 'TP50': 0.0, 'TP75': 0.0, 'TP90': 0.0} for col in columns_list}
 
@@ -141,6 +146,28 @@ with torch.no_grad():
             for key in ['TP50', 'TP75', 'TP90']:
                 class_metrics[col][key] += quantiles[key]
 
+        if args.gender and args.m_inputs==False:
+            genders = measurements[:, -1]  # Assuming the last measurement column is the gender
+            for gender in [0, 1]:  # 0 for male, 1 for female
+                gender_mask = (genders == gender)
+                gender_str = 'male' if gender == 0 else 'female'
+                if gender_mask.sum() > 0:
+                    gender_outputs = outputs[gender_mask]
+                    gender_targets = targets[gender_mask]
+
+                    gender_loss = criterion(gender_outputs, gender_targets)
+                    gender_rmse, gender_mae, gender_exp_var, gender_r2 = calculate_metrics(gender_outputs, gender_targets, criterion)
+                    gender_tp_metrics = quantile_metrics(gender_outputs, gender_targets)
+
+                    gender_metrics[gender_str]['mse'] += gender_loss.item()
+                    gender_metrics[gender_str]['rmse'] += gender_rmse
+                    gender_metrics[gender_str]['mae'] += gender_mae
+                    gender_metrics[gender_str]['exp_var'] += gender_exp_var
+                    gender_metrics[gender_str]['r2'] += gender_r2
+                    for key in ['tp50', 'tp75', 'tp90']:
+                        gender_metrics[gender_str][key] += gender_tp_metrics[key]
+                    gender_metrics[gender_str]['count'] += 1
+
 mse /= len(test_loader)
 rmse /= len(test_loader)
 mae /= len(test_loader)
@@ -152,6 +179,17 @@ for key in tp_metrics:
 for col in columns_list:
     for metric in ['mae', 'TP50', 'TP75', 'TP90']:
         class_metrics[col][metric] /= len(test_loader)
+
+for gender in ['male', 'female']:
+    count = gender_metrics[gender]['count']
+    if count > 0:
+        gender_metrics[gender]['mse'] /= count
+        gender_metrics[gender]['rmse'] /= count
+        gender_metrics[gender]['mae'] /= count
+        gender_metrics[gender]['exp_var'] /= count
+        gender_metrics[gender]['r2'] /= count
+        for key in ['tp50', 'tp75', 'tp90']:
+            gender_metrics[gender][key] /= count
 
 print(f'MSE: {mse:.4f}')
 print(f'RMSE: {rmse:.4f}')
@@ -201,3 +239,15 @@ else:
     class_metrics_df.to_csv(class_metrics_path, mode='a', header=False, index=True)
 
 print(f'Class-wise metrics saved to {class_metrics_path}')
+
+gender_metrics_df = pd.DataFrame(gender_metrics).T.reset_index()
+gender_metrics_df.rename(columns={'index': 'Gender'}, inplace=True)
+gender_metrics_df.set_index(['Gender'], inplace=True)
+gender_metrics_path = os.path.join('test_metrics', 'gender_metrics.csv')
+
+if not os.path.isfile(gender_metrics_path):
+    gender_metrics_df.to_csv(gender_metrics_path, index=True)
+else:
+    gender_metrics_df.to_csv(gender_metrics_path, mode='a', header=False, index=True)
+
+print(f'Gender-specific metrics saved to {gender_metrics_path}')
