@@ -59,17 +59,17 @@ class BodyMeasurementDataset(Dataset):
         
         else:
             measurements = torch.tensor(row['Stature (mm)']).unsqueeze(-1)
-            if self.get_weight:
-                weight = torch.tensor(row['Weight (kg)']).unsqueeze(-1)
-                measurements = torch.cat([measurements, weight], dim=0)
+            # if self.get_weight:
+            weight = torch.tensor(row['Weight (kg)']).unsqueeze(-1)
+            measurements = torch.cat([measurements, weight], dim=0)
             
-            if self.get_gender:
-                gender = row['Gender']
-                if gender == 'Male':
-                    gender_t = torch.tensor(0).unsqueeze(-1)
-                else:
-                    gender_t = torch.tensor(1).unsqueeze(-1)
-                measurements = torch.cat([measurements, gender_t], dim=0)
+            # if self.get_gender:
+            gender = row['Gender']
+            if gender == 'Male':
+                gender_t = torch.tensor(0).unsqueeze(-1)
+            else:
+                gender_t = torch.tensor(1).unsqueeze(-1)
+            measurements = torch.cat([measurements, gender_t], dim=0)
             
             return (images, measurements), targets
 

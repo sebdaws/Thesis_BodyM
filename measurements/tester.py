@@ -10,6 +10,13 @@ from dataload import BodyMeasurementDataset
 from build_model import MeasureNet, MeasureViT
 from utils import check_for_nans, calculate_metrics, quantile_metrics
 
+def measurement_inputs(args, all_measurements):
+    measurements = all_measurements[:, 0]
+    if args.weight:
+        measurements = torch.cat([measurements, all_measurements[:, 1]], dim=1)
+    if args.gender:
+        measurements = torch.cat([measurements, all_measurements[:, 2]], dim=1)
+    return measurements
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_path', required=True, type=str, help='Path of the model to test.')
@@ -70,7 +77,8 @@ for inputs, targets in test_loader:
         images = inputs
         num_m = images.shape[1]-3
     else:
-        images, measurements = inputs
+        images, all_measurements = inputs
+        measurements = measurement_inputs(args, all_measurements)
         num_m = measurements.shape[1]
     print(f'Inputs of shape {images.shape}')
     break
@@ -114,7 +122,8 @@ with torch.no_grad():
             images = inputs
             measurements = None
         else:
-            images, measurements = inputs
+            images, all_measurements = inputs
+            measurements = measurement_inputs(args, all_measurements)
             measurements = measurements.to(device)
             if check_for_nans(i, measurements, 'val measurements'):
                 continue
@@ -147,8 +156,8 @@ with torch.no_grad():
             for key in ['TP50', 'TP75', 'TP90']:
                 class_metrics[col][key] += quantiles[key]
 
-        if args.gender and args.m_inputs==False:
-            genders = measurements[:, -1]  # Assuming the last measurement column is the gender
+        if args.m_inputs==False:
+            genders = all_measurements[:, -1]  # Assuming the last measurement column is the gender
             for gender in [0, 1]:  # 0 for male, 1 for female
                 gender_mask = (genders == gender)
                 gender_str = 'male' if gender == 0 else 'female'
