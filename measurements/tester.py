@@ -11,11 +11,11 @@ from build_model import MeasureNet, MeasureViT
 from utils import check_for_nans, calculate_metrics, quantile_metrics
 
 def measurement_inputs(args, all_measurements):
-    measurements = all_measurements[:, 0]
+    measurements = all_measurements[:, 0].unsqueeze(1)
     if args.weight:
-        measurements = torch.cat([measurements, all_measurements[:, 1]], dim=1)
+        measurements = torch.cat([measurements, all_measurements[:, 1].unsqueeze(1)], dim=1)
     if args.gender:
-        measurements = torch.cat([measurements, all_measurements[:, 2]], dim=1)
+        measurements = torch.cat([measurements, all_measurements[:, 2].unsqueeze(1)], dim=1)
     return measurements
 
 parser = argparse.ArgumentParser()
@@ -78,7 +78,9 @@ for inputs, targets in test_loader:
         num_m = images.shape[1]-3
     else:
         images, all_measurements = inputs
+        print(all_measurements.shape)
         measurements = measurement_inputs(args, all_measurements)
+        print(measurements.shape)
         num_m = measurements.shape[1]
     print(f'Inputs of shape {images.shape}')
     break
