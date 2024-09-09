@@ -1,7 +1,7 @@
 __pycache__/
 CAESAR/
 trained_models/
-
+data/
 detectron2/
 weights/
 
